@@ -111,9 +111,12 @@ jobs:
         run: |
           set -o pipefail
           root=install/taisei
-          elf=$(find "$root" -maxdepth 2 -type f -name 'taisei*' ! -name '*.*' | head -1)
-          [ -n "$elf" ] || elf=$(find build-wiiu -maxdepth 2 -type f -name taisei | head -1)
-          echo "ELF: $elf"
+          # The executable from the build folder: elf2rpl needs its relocations
+          # and symbols.
+          elf=build-wiiu/src/taisei
+          file "$elf" || true
+          "$DEVKITPPC/bin/powerpc-eabi-readelf" -S "$elf" | grep -E "rela|symtab|rplwrap|fimport" | head -20 || true
+          "$DEVKITPPC/bin/powerpc-eabi-nm" "$elf" | grep -c "__rplwrap" || true
           mkdir -p artifacts/sd/wiiu/apps/taisei
           cp "$elf" artifacts/taisei.elf
           "$DEVKITPRO/tools/bin/elf2rpl" artifacts/taisei.elf artifacts/taisei.rpx
