@@ -90,6 +90,7 @@ jobs:
         run: |
           set -o pipefail
           export GX2GL_SDK="$PWD/gx2gl-sdk"
+          git config --global --add safe.directory "$PWD"
           wiiu/crossfile.sh > wiiu-cross.ini
           cat wiiu-cross.ini
           {
@@ -99,7 +100,7 @@ jobs:
               --buildtype release \
               --prefix /taisei \
               -Dkoishi:impl=fcontext &&
-            meson compile -C build-wiiu &&
+            meson compile -C build-wiiu --ninja-args=-k0 &&
             DESTDIR="$PWD/install" meson install -C build-wiiu
           } 2>&1 | tee -a ci-build.log
           find install -maxdepth 3 | head -50

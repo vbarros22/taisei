@@ -15,6 +15,10 @@
 #include "arch_wiiu_gl.h"
 #include "util/env.h"
 
+/* wut uses alignas() where C only allows __attribute__((aligned)), when
+ * <stdalign.h> (included by Taisei) defines it. */
+#pragma push_macro("alignas")
+#undef alignas
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +37,7 @@
 #include <whb/log_cafe.h>
 #include <whb/log_udp.h>
 #include <whb/proc.h>
+#pragma pop_macro("alignas")
 
 #undef exit
 #undef atexit
