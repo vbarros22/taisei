@@ -1,8 +1,19 @@
+diff --git a/src/fcontext/asm/jump_ppc32_sysv_elf_gas.S b/src/fcontext/asm/jump_ppc32_sysv_elf_gas.S
+index 48e09c9..a70d993 100644
+--- a/src/fcontext/asm/jump_ppc32_sysv_elf_gas.S
++++ b/src/fcontext/asm/jump_ppc32_sysv_elf_gas.S
+@@ -197,5 +197,4 @@ jump_fcontext:
+     bctr
+ .size jump_fcontext, .-jump_fcontext
+ 
+-/* Mark that we don't need executable stack.  */
+-.section .note.GNU-stack,"",%progbits
++/* No .note.GNU-stack on the Wii U: elf2rpl can't place it. */
 diff --git a/src/fcontext/asm/make_ppc32_sysv_elf_gas.S b/src/fcontext/asm/make_ppc32_sysv_elf_gas.S
-index 9616c4c..0cfb0c2 100644
+index 9616c4c..3dcf55c 100644
 --- a/src/fcontext/asm/make_ppc32_sysv_elf_gas.S
 +++ b/src/fcontext/asm/make_ppc32_sysv_elf_gas.S
-@@ -123,24 +123,11 @@ trampoline:
+@@ -123,24 +123,10 @@ trampoline:
  #endif
  
  finish:
@@ -28,5 +39,17 @@ index 9616c4c..0cfb0c2 100644
 -.section .got2,"aw"
 -.Ltoc = . + 0x8000
 -
- /* Mark that we don't need executable stack.  */
- .section .note.GNU-stack,"",%progbits
+-/* Mark that we don't need executable stack.  */
+-.section .note.GNU-stack,"",%progbits
++/* No .note.GNU-stack on the Wii U: elf2rpl can't place it. */
+diff --git a/src/fcontext/asm/ontop_ppc32_sysv_elf_gas.S b/src/fcontext/asm/ontop_ppc32_sysv_elf_gas.S
+index 464d99d..8407921 100644
+--- a/src/fcontext/asm/ontop_ppc32_sysv_elf_gas.S
++++ b/src/fcontext/asm/ontop_ppc32_sysv_elf_gas.S
+@@ -189,5 +189,4 @@ ontop_fcontext:
+     b ontop_fcontext_tail
+ .size ontop_fcontext, .-ontop_fcontext
+ 
+-/* Mark that we don't need executable stack.  */
+-.section .note.GNU-stack,"",%progbits
++/* No .note.GNU-stack on the Wii U: elf2rpl can't place it. */
