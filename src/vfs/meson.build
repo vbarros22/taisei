@@ -44,6 +44,11 @@ elif host_machine.system() == 'nx'
         'setup_switch.c',
         'sync_noop.c',
     )
+elif host_machine.system() == 'wiiu'
+    vfs_src += files(
+        'setup_wiiu.c',
+        'sync_noop.c',
+    )
 else
     vfs_src += files(
         'setup_generic.c',

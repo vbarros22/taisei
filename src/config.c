@@ -514,6 +514,13 @@ void config_load(void) {
 	config_set_int(CONFIG_VID_WIDTH, nxGetInitialScreenWidth());
 	config_set_int(CONFIG_VID_HEIGHT, nxGetInitialScreenHeight());
 #endif
+
+#ifdef __WIIU__
+	config_set_int(CONFIG_GAMEPAD_ENABLED, true);
+	config_set_str(CONFIG_GAMEPAD_DEVICE, "any");
+	config_set_int(CONFIG_VID_WIDTH, wiiu_get_screen_width());
+	config_set_int(CONFIG_VID_HEIGHT, wiiu_get_screen_height());
+#endif
 }
 
 void config_reset(void) {

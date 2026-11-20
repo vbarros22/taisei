@@ -439,7 +439,8 @@ prefer_relpath_systems = [
 
 force_relpath_systems = [
     'emscripten',
-    'nx'
+    'nx',
+    'wiiu',
 ]
 
 opt_install_macos_bundle = get_option('install_macos_bundle')

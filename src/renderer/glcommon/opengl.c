@@ -15,6 +15,10 @@
 #include "util/env.h"
 #include "util/io.h"
 
+#ifdef __WIIU__
+#include "arch_wiiu_gl.h"
+#endif
+
 struct glext_s glext = { 0 };
 
 typedef void (*glad_glproc_ptr)(void);

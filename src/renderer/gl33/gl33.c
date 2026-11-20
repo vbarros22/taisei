@@ -26,6 +26,10 @@
 #include "vertex_array.h"
 #include "vertex_buffer.h"
 
+#ifdef __WIIU__
+#include "arch_wiiu_gl.h"
+#endif
+
 // #define GL33_DEBUG_TEXUNITS
 // #define GL33_DRAW_STATS
 

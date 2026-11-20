@@ -113,6 +113,11 @@ if host_machine.system() == 'nx'
     taisei_src += files(
         'arch_switch.c',
     )
+elif host_machine.system() == 'wiiu'
+    taisei_src += files(
+        'arch_wiiu.c',
+        'arch_wiiu_debug.c',
+    )
 endif
 
 subdir('audio')

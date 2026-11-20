@@ -1,0 +1,145 @@
+name: Wii U
+
+on:
+  push:
+    branches: ['wiiu', 'wiiu-*']
+    tags: ['wiiu-*']
+  workflow_dispatch:
+
+env:
+  DEVKITPRO: /opt/devkitpro
+  DEVKITPPC: /opt/devkitpro/devkitPPC
+  # CafeGLSL comes prebuilt from the gx2gl SDK (it takes long to build);
+  # gx2gl itself is built from its branch, so its fixes arrive right away.
+  GX2GL_SDK_URL: https://github.com/vbarros22/gx2gl/releases/download/sdk-v0.3.0-gs/gx2gl-sdk.tar.gz
+  GX2GL_REPOSITORY: vbarros22/gx2gl
+  GX2GL_REF: geometry-shaders
+  CAFEGLSL_REPOSITORY: vbarros22/CafeGLSL
+  CAFEGLSL_REF: geometry-shaders
+
+permissions:
+  contents: write   # only the release step on wiiu-* tags writes
+
+jobs:
+  wiiu:
+    name: Wii U (.wuhb)
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitppc:latest
+    steps:
+      - name: Install dependencies
+        shell: bash
+        run: |
+          rm -f /etc/apt/sources.list.d/devkitpro.list
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates curl cmake ninja-build git python3 python3-pip python3-venv zip
+          python3 -m venv /opt/meson
+          /opt/meson/bin/pip install meson==1.4.1 ninja
+          echo /opt/meson/bin >> "$GITHUB_PATH"
+          # The devkitPro package mirror is sometimes slow to answer.
+          pkgs="wiiu-sdl2 wiiu-pkg-config ppc-freetype ppc-libpng ppc-zlib ppc-libwebp ppc-zstd ppc-libogg ppc-libopus ppc-opusfile"
+          for i in 1 2 3 4 5; do
+            dkp-pacman -Sy && break
+            sleep 20
+          done
+          for p in $pkgs; do
+            dkp-pacman -S --noconfirm --needed "$p" || echo "::warning::no package $p"
+          done
+          dkp-pacman -Q | grep -E "wiiu|ppc-" || true
+          ls "$DEVKITPRO"/*vars.sh
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GX2GL_REPOSITORY }}
+          ref: ${{ env.GX2GL_REF }}
+          path: deps/gx2gl
+
+      # Only for CafeGLSLCompiler.h; the library comes from the SDK.
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.CAFEGLSL_REPOSITORY }}
+          ref: ${{ env.CAFEGLSL_REF }}
+          path: deps/cafeglsl
+          sparse-checkout: cafecompiler
+
+      - name: Build gx2gl
+        shell: bash
+        run: |
+          set -o pipefail
+          curl -fsSL "$GX2GL_SDK_URL" -o gx2gl-sdk.tar.gz
+          tar xzf gx2gl-sdk.tar.gz
+          mkdir -p deps/cafeglsl/build-cafe/cafecompiler
+          cp gx2gl-sdk/lib/libcafeglsl.a deps/cafeglsl/build-cafe/cafecompiler/
+          {
+            cmake -S deps/gx2gl -B build-gx2gl -G Ninja \
+              -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/WiiU.cmake" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DGX2GL_CAFEGLSL_ROOT="$PWD/deps/cafeglsl" &&
+            cmake --build build-gx2gl --target gl33_gx2_core
+          } 2>&1 | tee ci-build.log
+          # Same layout as the SDK, with the fresh gx2gl.
+          rm -rf gx2gl-sdk/include && cp -r deps/gx2gl/include gx2gl-sdk/include
+          cp "$(find build-gx2gl -name libgl33_gx2_core.a | head -1)" gx2gl-sdk/lib/
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          export GX2GL_SDK="$PWD/gx2gl-sdk"
+          wiiu/crossfile.sh > wiiu-cross.ini
+          cat wiiu-cross.ini
+          {
+            meson setup build-wiiu \
+              --cross-file wiiu-cross.ini \
+              --native-file wiiu/options.ini \
+              --buildtype release \
+              --prefix /taisei \
+              -Dkoishi:impl=fcontext &&
+            meson compile -C build-wiiu &&
+            DESTDIR="$PWD/install" meson install -C build-wiiu
+          } 2>&1 | tee -a ci-build.log
+          find install -maxdepth 3 | head -50
+
+      - name: Package
+        shell: bash
+        run: |
+          set -o pipefail
+          root=install/taisei
+          elf=$(find "$root" -maxdepth 2 -type f -name 'taisei*' ! -name '*.*' | head -1)
+          [ -n "$elf" ] || elf=$(find build-wiiu -maxdepth 2 -type f -name taisei | head -1)
+          echo "ELF: $elf"
+          mkdir -p artifacts/sd/wiiu/apps/taisei
+          cp "$elf" artifacts/taisei.elf
+          "$DEVKITPRO/tools/bin/elf2rpl" artifacts/taisei.elf artifacts/taisei.rpx
+          "$DEVKITPRO/tools/bin/wuhbtool" artifacts/taisei.rpx artifacts/taisei.wuhb \
+            --name "Taisei Project" --short-name "Taisei" --author "Taisei Project Team, Wii U port by vbarros22"
+          # The game data goes on the SD card, next to the log and saves.
+          data=$(find "$root" -maxdepth 3 -type d -name '00-taisei.pkgdir' -printf '%h\n' | head -1)
+          echo "Data: $data"
+          cp -r "$data" artifacts/sd/wiiu/apps/taisei/data
+          cp artifacts/taisei.wuhb artifacts/sd/wiiu/apps/
+          cp wiiu/README.md artifacts/ 2>/dev/null || true
+          du -sh artifacts/sd
+
+      - name: Report failure as annotations
+        if: failure()
+        shell: bash
+        run: |
+          f=ci-build.log
+          [ -f "$f" ] || exit 0
+          # Long command lines would use up the annotation, so cut them.
+          cut -c1-400 "$f" | grep -v "^\[[0-9]*/[0-9]*\] Compiling" > ci-short.log || true
+          { grep -n -B2 -A12 -E "error|ERROR|FAILED|undefined reference|multiple definition|Dependency .* not found" ci-short.log | head -150
+            echo "----- tail -----"; tail -40 ci-short.log; } > ci-excerpt.txt || true
+          msg=$(sed -e 's/%/%25/g' -e 's/\r/%0D/g' ci-excerpt.txt | awk 'BEGIN{ORS="%0A"} {print}')
+          echo "::error title=$f::$msg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: taisei-wiiu
+          path: artifacts/
+          if-no-files-found: error

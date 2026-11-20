@@ -317,6 +317,13 @@ typedef _Complex double cmplx;
 	#define abort nxAbort
 #endif
 
+#ifdef __WIIU__
+	#include "../arch_wiiu.h"
+	#define atexit wiiu_atexit
+	#define exit wiiu_exit
+	#define abort wiiu_abort
+#endif
+
 #ifdef RNG_API_CHECK
 	#define _Generic(ignore, ...) _Generic(0, __VA_ARGS__)
 #endif

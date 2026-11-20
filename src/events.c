@@ -195,6 +195,10 @@ void events_poll(EventHandler *handlers, EventFlags flags) {
 
 	for(;;) {
 		if(!(flags & EFLAG_NOPUMP)) {
+#ifdef __WIIU__
+			// The HOME menu, and the log on the SD card.
+			wiiu_frame();
+#endif
 			SDL_PumpEvents();
 		}
 

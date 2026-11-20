@@ -302,6 +302,17 @@ int main(int argc, char **argv);
 
 attr_used
 int main(int argc, char **argv) {
+#ifdef __WIIU__
+	wiiu_init();
+
+	// The loader may pass no arguments at all.
+	static char *wiiu_argv[] = { "taisei", NULL };
+	if(argc < 1 || !argv) {
+		argc = 1;
+		argv = wiiu_argv;
+	}
+#endif
+
 	setlocale(LC_ALL, "C");
 	thread_init();
 	coroutines_init();
