@@ -34,7 +34,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             ca-certificates curl cmake ninja-build git python3 python3-pip python3-venv zip
           python3 -m venv /opt/meson
-          /opt/meson/bin/pip install meson==1.4.1 ninja
+          /opt/meson/bin/pip install meson==1.4.1 ninja zstandard
           echo /opt/meson/bin >> "$GITHUB_PATH"
           # The devkitPro package mirror is sometimes slow to answer.
           pkgs="wiiu-sdl2 wiiu-pkg-config ppc-freetype ppc-libpng ppc-zlib ppc-libwebp ppc-zstd ppc-libogg ppc-libopus ppc-opusfile"
@@ -91,12 +91,13 @@ jobs:
           set -o pipefail
           export GX2GL_SDK="$PWD/gx2gl-sdk"
           git config --global --add safe.directory "$PWD"
-          wiiu/crossfile.sh > wiiu-cross.ini
+          # Project options go in the cross file: in a cross build, a native
+          # file only configures the build machine.
+          { wiiu/crossfile.sh; echo; cat wiiu/options.ini; } > wiiu-cross.ini
           cat wiiu-cross.ini
           {
             meson setup build-wiiu \
               --cross-file wiiu-cross.ini \
-              --native-file wiiu/options.ini \
               --buildtype release \
               --prefix /taisei \
               -Dkoishi:impl=fcontext &&
@@ -119,7 +120,7 @@ jobs:
           "$DEVKITPRO/tools/bin/wuhbtool" artifacts/taisei.rpx artifacts/taisei.wuhb \
             --name "Taisei Project" --short-name "Taisei" --author "Taisei Project Team, Wii U port by vbarros22"
           # The game data goes on the SD card, next to the log and saves.
-          data=$(find "$root" -maxdepth 3 -type d -name '00-taisei.pkgdir' -printf '%h\n' | head -1)
+          data=$(find "$root" -maxdepth 4 -name '00-taisei.*' -printf '%h\n' | head -1)
           echo "Data: $data"
           cp -r "$data" artifacts/sd/wiiu/apps/taisei/data
           cp artifacts/taisei.wuhb artifacts/sd/wiiu/apps/
