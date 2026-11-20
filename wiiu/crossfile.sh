@@ -44,6 +44,9 @@ cpp_args = [$(meson_arg_list $CPPFLAGS $GX2GL_CPPFLAGS $CXXFLAGS)]
 cpp_link_args = [$(meson_arg_list $LDFLAGS $GX2GL_LIBS $LIBS)]
 werror = false
 prefer_static = true
+# elf2rpl can't convert the relocations position independent code uses.
+b_staticpic = false
+b_pie = false
 
 [host_machine]
 system = 'wiiu'
