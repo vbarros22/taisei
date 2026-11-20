@@ -1,0 +1,32 @@
+diff --git a/src/fcontext/asm/make_ppc32_sysv_elf_gas.S b/src/fcontext/asm/make_ppc32_sysv_elf_gas.S
+index 9616c4c..0cfb0c2 100644
+--- a/src/fcontext/asm/make_ppc32_sysv_elf_gas.S
++++ b/src/fcontext/asm/make_ppc32_sysv_elf_gas.S
+@@ -123,24 +123,11 @@ trampoline:
+ #endif
+ 
+ finish:
+-    # Use the secure PLT for _exit(0).  If we use the insecure BSS PLT
+-    # here, then the linker may use the insecure BSS PLT even if the
+-    # C++ compiler wanted the secure PLT.
+-
+-    # set R30 for secure PLT, large model
+-    bl     2f
+-2:  mflr   %r30
+-    addis  %r30, %r30, .Ltoc - 2b@ha
+-    addi   %r30, %r30, .Ltoc - 2b@l
+-
+-    # call _exit(0) with special addend 0x8000 for large model
++    # Wii U (Cafe OS EABI, no PLT): call _exit(0) directly. elf2rpl
++    # can't convert the secure PLT's PC-relative relocations.
+     li  %r3, 0
+-    bl  _exit + 0x8000@plt
++    bl  _exit
+ .size make_fcontext, .-make_fcontext
+ 
+-/* Provide the GOT pointer for secure PLT, large model. */
+-.section .got2,"aw"
+-.Ltoc = . + 0x8000
+-
+ /* Mark that we don't need executable stack.  */
+ .section .note.GNU-stack,"",%progbits

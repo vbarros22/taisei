@@ -91,6 +91,10 @@ jobs:
           set -o pipefail
           export GX2GL_SDK="$PWD/gx2gl-sdk"
           git config --global --add safe.directory "$PWD"
+          git config --global --add safe.directory "$PWD/external/koishi"
+          # koishi's PowerPC context switch calls _exit through the secure
+          # PLT, which elf2rpl can't convert.
+          git -C external/koishi apply "$PWD/wiiu/koishi-ppc32-eabi.patch"
           # Project options go in the cross file: in a cross build, a native
           # file only configures the build machine.
           { wiiu/crossfile.sh; echo; cat wiiu/options.ini; } > wiiu-cross.ini
@@ -119,7 +123,14 @@ jobs:
           "$DEVKITPPC/bin/powerpc-eabi-nm" "$elf" | grep -c "__rplwrap" || true
           mkdir -p artifacts/sd/wiiu/apps/taisei
           cp "$elf" artifacts/taisei.elf
-          "$DEVKITPRO/tools/bin/elf2rpl" artifacts/taisei.elf artifacts/taisei.rpx
+          if ! "$DEVKITPRO/tools/bin/elf2rpl" artifacts/taisei.elf artifacts/taisei.rpx; then
+            # Which objects have relocations elf2rpl can't convert?
+            for o in $(find build-wiiu -name '*.o'); do
+              "$DEVKITPPC/bin/powerpc-eabi-readelf" -rW "$o" 2>/dev/null |
+                grep -qE "R_PPC_(REL16|PLTREL24|GOT|PLT)" && echo "PIC relocations in $o"
+            done | head -30
+            exit 1
+          fi
           "$DEVKITPRO/tools/bin/wuhbtool" artifacts/taisei.rpx artifacts/taisei.wuhb \
             --name "Taisei Project" --short-name "Taisei" --author "Taisei Project Team, Wii U port by vbarros22"
           # The game data goes on the SD card, next to the log and saves.
