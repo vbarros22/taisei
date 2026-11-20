@@ -14,10 +14,11 @@
  * (powerpc-eabi-addr2line -e taisei.elf ...).
  */
 
-/* wut uses alignas() where C only allows __attribute__((aligned)), when
- * <stdalign.h> (included by Taisei) defines it. */
-#pragma push_macro("alignas")
-#undef alignas
+/* wut's structs use alignas() where C only allows __attribute__((aligned)),
+ * when <stdalign.h> (included by Taisei) has defined alignas. */
+#include <wut_structsize.h>
+#undef WUT_ALIGNAS
+#define WUT_ALIGNAS(x) __attribute__((aligned(x)))
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +28,6 @@
 #include <coreinit/exception.h>
 #include <coreinit/thread.h>
 #include <coreinit/time.h>
-#pragma pop_macro("alignas")
 
 #include "arch_wiiu.h"
 
