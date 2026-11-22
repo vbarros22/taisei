@@ -18,7 +18,7 @@ permissions:
 
 env:
   GX2GL_REPOSITORY: vbarros22/gx2gl
-  GX2GL_REF: geometry-shaders
+  GX2GL_REF: taisei
   CAFEGLSL_REPOSITORY: vbarros22/cafeglsl
   CAFEGLSL_BRANCH: geometry-shaders
 

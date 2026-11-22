@@ -13,7 +13,7 @@ env:
   # gx2gl itself is built from its branch, so its fixes arrive right away.
   GX2GL_SDK_URL: https://github.com/vbarros22/gx2gl/releases/download/sdk-v0.3.0-gs/gx2gl-sdk.tar.gz
   GX2GL_REPOSITORY: vbarros22/gx2gl
-  GX2GL_REF: geometry-shaders
+  GX2GL_REF: taisei
   CAFEGLSL_REPOSITORY: vbarros22/CafeGLSL
   CAFEGLSL_REF: geometry-shaders
 
@@ -74,10 +74,6 @@ jobs:
           tar xzf gx2gl-sdk.tar.gz
           mkdir -p deps/cafeglsl/build-cafe/cafecompiler
           cp gx2gl-sdk/lib/libcafeglsl.a deps/cafeglsl/build-cafe/cafecompiler/
-          # glTexStorage2D / GL_ARB_texture_storage for gx2gl, until it is
-          # upstream: one allocation for all mip levels instead of one
-          # reallocation and copy per level.
-          git -C deps/gx2gl apply "$PWD/wiiu/gx2gl-texture-storage.patch"
           {
             cmake -S deps/gx2gl -B build-gx2gl -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/WiiU.cmake" \

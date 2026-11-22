@@ -7,12 +7,11 @@ out=[]; st={'ver':False,'hdr':False}
 def proc(path,level):
     lines=open(os.path.join(root,path)).read().split('\n')
     if lines and lines[-1]=='': lines=lines[:-1]
-    need=True
+    # The main file gets no line marker before its first line (#version).
+    need=level>0
     for n,l in enumerate(lines,1):
         s=l.strip()
         if s.startswith('#include'):
-            if not st['hdr']:
-                out.append('#define %s_STAGE'%stage); out.append('#define BACKEND_GL33 1'); st['hdr']=True
             f=re.search(r'"(.*)"',s).group(1)
             inc=os.path.normpath(os.path.join(os.path.dirname(path),f))
             out.append('// begin include (level %d)'%level)
@@ -20,7 +19,11 @@ def proc(path,level):
             out.append('// end include (level %d)'%level)
             need=True; continue
         if s.startswith('#version'):
-            out.append('#version 330 core'); need=True; continue
+            # Like glsl_write_version() + glsl_write_header(): the stage
+            # and backend macros right after #version.
+            out.append('#version 330 core')
+            out.append('#define %s_STAGE'%stage); out.append('#define BACKEND_GL33 1')
+            need=True; continue
         if need:
             out.append('// file: %s'%path); out.append('#line %d %d'%(n,level)); need=False
         out.append(l)
