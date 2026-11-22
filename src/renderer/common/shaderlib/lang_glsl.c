@@ -192,6 +192,10 @@ static bool glsl_process_file(GLSLFileParseState *fstate) {
 	++fstate->lineno;
 	glsl_write_lineno(fstate);
 	attr_unused uint lines_read = 0;
+#ifdef __WIIU__
+	uint read_attempts = 0;
+reread:
+#endif
 
 	while(SDL_RWgets_realloc(stream, &fstate->global->linebuf, &fstate->global->linebuf_size)) {
 		++lines_read;
@@ -289,7 +293,22 @@ static bool glsl_process_file(GLSLFileParseState *fstate) {
 
 #ifdef __WIIU__
 	if(lines_read == 0) {
-		log_error("%s: no lines read (size %lld)", fstate->path, (long long)SDL_RWsize(stream));
+		log_error("%s: no lines read (size %lld)%s", fstate->path,
+			(long long)SDL_RWsize(stream), read_attempts < 3 ? ", reading it again" : "");
+
+		if(read_attempts++ < 3) {
+			SDL_RWclose(stream);
+			stream = open
+				? open(fstate->path, fstate->global->options->file_open_callback_userdata)
+				: vfs_open(fstate->path, VFS_MODE_READ);
+
+			if(stream) {
+				goto reread;
+			}
+
+			log_error("VFS error: %s", vfs_get_error());
+			return false;
+		}
 	}
 #endif
 
