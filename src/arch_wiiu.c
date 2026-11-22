@@ -151,6 +151,11 @@ void wiiu_init(void) {
 	/* No real windows: SDL's dummy video driver keeps the window code
 	 * happy, the picture comes from gx2gl. */
 	env_set_string("SDL_VIDEODRIVER", "dummy", true);
+
+	/* SDL's Wii U threads get 32 KB of stack by default: Taisei's loader
+	 * threads (shader #includes, image decoders) overflowed that into the
+	 * heap, which crashed in unrelated places later. */
+	env_set_string("SDL_THREAD_STACK_SIZE", "1048576", true);
 	env_set_string("TAISEI_RENDERER", "gl33", true);
 
 	/* All of the log into taisei.log, with timestamps. */
@@ -203,9 +208,10 @@ void wiiu_thread_started(void) {
 	OSYieldThread();
 
 	char text[128];
-	snprintf(text, sizeof(text), "Thread '%s': priority %d -> %d, now on core %u\n",
+	snprintf(text, sizeof(text), "Thread '%s': priority %d -> %d, now on core %u, %u KB of stack\n",
 		OSGetThreadName(thread) ? OSGetThreadName(thread) : "?",
-		before, (int)OSGetThreadPriority(thread), (unsigned)OSGetCoreId());
+		before, (int)OSGetThreadPriority(thread), (unsigned)OSGetCoreId(),
+		(unsigned)(((uint32_t)thread->stackStart - (uint32_t)thread->stackEnd) / 1024));
 	wiiu_log_raw(text);
 }
 
