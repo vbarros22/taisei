@@ -138,6 +138,8 @@ void wiiu_init(void) {
 	env_set_string("TAISEI_LOGLVLS_CONSOLE", "+a", true);
 	env_set_string("TAISEI_LOGLVLS_STDOUT", "+a", true);
 	env_set_string("TAISEI_LOGLVLS_STDERR", "-a", true);
+	/* Write the log right away: queued lines would be lost in a crash. */
+	env_set_string("TAISEI_LOG_ASYNC", "0", true);
 }
 
 void wiiu_frame(void) {
