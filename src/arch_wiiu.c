@@ -14,6 +14,9 @@
 #include "arch_wiiu.h"
 #include "arch_wiiu_gl.h"
 #include "util/env.h"
+#include "hirestime.h"
+#include "config.h"
+#include "progress.h"
 
 /* wut's structs use alignas() where C only allows __attribute__((aligned)),
  * when <stdalign.h> (included by Taisei) has defined alignas. */
@@ -181,8 +184,15 @@ void wiiu_frame(void) {
 	wiiu_pause_watchdog(0);
 
 	if(!running) {
-		/* HOME menu "close software", or a power down. */
+		/* HOME menu "close software", or a power down. The GPU is gone,
+		 * so don't run the shutdown (it finishes loading resources and
+		 * frees GL objects, which crashed in GX2): save and leave. */
 		wiiu_leaving_foreground = true;
+		wiiu_pause_watchdog(1);
+		wiiu_log_raw("Leaving through HOME: saving\n");
+		config_save();
+		progress_save();
+		num_atexit_fns = 0;
 		wiiu_exit(0);
 	}
 }
@@ -213,6 +223,18 @@ void wiiu_thread_started(void) {
 		before, (int)OSGetThreadPriority(thread), (unsigned)OSGetCoreId(),
 		(unsigned)(((uint32_t)thread->stackStart - (uint32_t)thread->stackEnd) / 1024));
 	wiiu_log_raw(text);
+}
+
+static uint64_t phase_us[WIIU_PHASE_COUNT];
+static uint32_t phase_count[WIIU_PHASE_COUNT];
+
+uint64_t wiiu_now_us(void) {
+	return OSTicksToMicroseconds(OSGetSystemTime());
+}
+
+void wiiu_phase_add(int phase, uint64_t start_us) {
+	phase_us[phase] += wiiu_now_us() - start_us;
+	phase_count[phase]++;
 }
 
 int wiiu_atexit(WiiUAtExitFn fn) {
@@ -398,6 +420,13 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 	bool sample = OSTicksToMilliseconds(now - last_sample) >= 10000;
 	last = now;
 
+	/* Taisei's own clock against the system's: a wrong timer would make
+	 * the frame limiter wait far too long. */
+	static hrtime_t last_taisei;
+	hrtime_t taisei_now = time_get();
+	int taisei_ms = last_taisei ? (int)((taisei_now - last_taisei) / (HRTIME_RESOLUTION / 1000)) : 0;
+	last_taisei = taisei_now;
+
 	if((ms >= 40 || sample) && reported_slow < 3000) {
 		GX2GL_FrameStats st;
 		struct mallinfo mi = mallinfo();
@@ -420,10 +449,20 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 			st.finish_us / 1000, st.vsync_us / 1000,
 			(unsigned)(mi.uordblks / (1024 * 1024)));
 		wiiu_log_raw(line);
+		snprintf(line, sizeof(line),
+			"    main loop: logic %ux/%ums render %ux/%ums wait %ux/%ums | taisei clock %d ms\n",
+			phase_count[WIIU_PHASE_LOGIC], (unsigned)(phase_us[WIIU_PHASE_LOGIC] / 1000),
+			phase_count[WIIU_PHASE_RENDER], (unsigned)(phase_us[WIIU_PHASE_RENDER] / 1000),
+			phase_count[WIIU_PHASE_WAIT], (unsigned)(phase_us[WIIU_PHASE_WAIT] / 1000),
+			taisei_ms);
+		wiiu_log_raw(line);
 		reported_slow++;
 
 		if(sample) {
 			last_sample = now;
 		}
 	}
+
+	memset(phase_us, 0, sizeof(phase_us));
+	memset(phase_count, 0, sizeof(phase_count));
 }

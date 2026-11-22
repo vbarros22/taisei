@@ -84,7 +84,13 @@ begin_frame:
 				);
 			}
 		} else {
+#ifdef __WIIU__
+			uint64_t wiiu_logic_start = wiiu_now_us();
+#endif
 			lframe_action = handle_logic(&frame, &evloop.frame_times);
+#ifdef __WIIU__
+			wiiu_phase_add(WIIU_PHASE_LOGIC, wiiu_logic_start);
+#endif
 
 			if(!frame || lframe_action == LFRAME_STOP) {
 				goto begin_main_loop;
@@ -92,7 +98,13 @@ begin_frame:
 		}
 
 		if((uncapped_rendering || !(frame_num % get_effective_frameskip())) && !global.is_replay_verification) {
+#ifdef __WIIU__
+			uint64_t wiiu_render_start = wiiu_now_us();
+#endif
 			run_render_frame(frame);
+#ifdef __WIIU__
+			wiiu_phase_add(WIIU_PHASE_RENDER, wiiu_render_start);
+#endif
 		}
 
 		fpscounter_update(&global.fps.busy);
@@ -120,6 +132,10 @@ begin_frame:
 			}
 		}
 
+#ifdef __WIIU__
+		uint64_t wiiu_wait_start = wiiu_now_us();
+#endif
+
 		if(sleep > 0) {
 			// CAUTION: All of these casts are important!
 			while((shrtime_t)evloop.frame_times.next - (shrtime_t)time_get() > (shrtime_t)evloop.frame_times.target / sleep) {
@@ -133,5 +149,9 @@ begin_frame:
 		}
 
 		while(time_get() < evloop.frame_times.next);
+
+#ifdef __WIIU__
+		wiiu_phase_add(WIIU_PHASE_WAIT, wiiu_wait_start);
+#endif
 	}
 }

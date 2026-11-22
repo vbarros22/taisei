@@ -33,6 +33,11 @@ int wiiu_get_screen_height(void);
  * thread's core, below the main thread's priority. */
 void wiiu_thread_started(void);
 
+/* Where the main loop's time goes, reported with the frame statistics. */
+enum { WIIU_PHASE_LOGIC, WIIU_PHASE_RENDER, WIIU_PHASE_WAIT, WIIU_PHASE_COUNT };
+uint64_t wiiu_now_us(void);
+void wiiu_phase_add(int phase, uint64_t start_us);
+
 /* The log on the SD card (taisei.log), with milliseconds since startup. */
 void wiiu_log_raw(const char *string);
 void wiiu_sync_log(void);
