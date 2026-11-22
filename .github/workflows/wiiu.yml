@@ -9,6 +9,9 @@ on:
 env:
   DEVKITPRO: /opt/devkitpro
   DEVKITPPC: /opt/devkitpro/devkitPPC
+  # Pack the game data without compression (scripts/pack.py): zstd at
+  # level 20 needs tens of MB per open file, too much for the Wii U.
+  TAISEI_PACK_STORE: 1
   # CafeGLSL comes prebuilt from the gx2gl SDK (it takes long to build);
   # gx2gl itself is built from its branch, so its fixes arrive right away.
   GX2GL_SDK_URL: https://github.com/vbarros22/gx2gl/releases/download/sdk-v0.3.0-gs/gx2gl-sdk.tar.gz
@@ -121,6 +124,10 @@ jobs:
           file "$elf" || true
           "$DEVKITPPC/bin/powerpc-eabi-readelf" -S "$elf" | grep -E "rela|symtab|rplwrap|fimport" | head -20 || true
           "$DEVKITPPC/bin/powerpc-eabi-nm" "$elf" | grep -c "__rplwrap" || true
+          # The data must be stored without compression (TAISEI_PACK_STORE).
+          z="$(find . -name 00-taisei.zip -not -path './.git/*' | head -1)"
+          echo "data: $z"; ls -la "$z" || true
+          python3 -c "import sys,zipfile,collections; print(collections.Counter(i.compress_type for i in zipfile.ZipFile(sys.argv[1]).infolist()))" "$z" || true
           # Which malloc is linked (newlib's or wut's), and its locks.
           "$DEVKITPPC/bin/powerpc-eabi-nm" "$elf" | grep -E " (_malloc_r|_free_r|_memalign_r|__malloc_lock|__malloc_unlock|__syscall_malloc_lock|__wut_[a-z_]*malloc[a-z_]*|__init_wut_[a-z_]*|MEMAllocFromDefaultHeapEx|__retarget_lock_acquire_recursive|__syscall_lock_acquire_recursive)$" || true
           mkdir -p artifacts/sd/wiiu/apps/taisei

@@ -104,7 +104,16 @@ def log_file(path, arcname, comp_type=None):
 def pack(args):
     nocompress_file = args.directory / '.nocompress'
 
-    if 1:
+    # TAISEI_PACK_STORE=1: no compression at all (the Wii U port). Every
+    # zstd stream opened at runtime allocates a window of tens of MB at
+    # level 20, and with several threads reading nested shader #includes
+    # at once the Wii U ran out of memory and read files back empty.
+    store_only = os.environ.get('TAISEI_PACK_STORE', '') not in ('', '0')
+
+    if store_only:
+        comp_type = ZIP_STORED
+        comp_level = None
+    elif 1:
         comp_type = ZIP_ZSTANDARD
         comp_level = 20
     else:
@@ -118,7 +127,7 @@ def pack(args):
         nocompress_file = None
 
     zkwargs = {}
-    if (sys.version_info.major, sys.version_info.minor) >= (3, 7):
+    if comp_level is not None and (sys.version_info.major, sys.version_info.minor) >= (3, 7):
         zkwargs['compresslevel'] = comp_level
 
     dependencies = []
@@ -139,7 +148,13 @@ def pack(args):
             else:
                 dependencies.append(path)
 
-                if path.suffix == '.zst':
+                if path.suffix == '.zst' and store_only:
+                    arcname = str(relpath.with_suffix(''))
+                    log_file(path, arcname, ZIP_STORED)
+                    with path.open('rb') as zst_file:
+                        data = zstd_decompressor.stream_reader(zst_file).read()
+                    zf.writestr(arcname, data, compress_type=ZIP_STORED)
+                elif path.suffix == '.zst':
                     write_zst_file(zf, path, str(relpath.with_suffix('')))
                 else:
                     ctype = comp_type
