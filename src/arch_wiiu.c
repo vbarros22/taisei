@@ -373,6 +373,13 @@ SDL_GLContext wiiu_gl_create_context(SDL_Window *window) {
 			SDL_SetError("GX2GL_CreateContext() failed");
 			return NULL;
 		}
+
+		/* Test switch (env.txt): no TV-to-GamePad copy, whose
+		 * GX2DrawDone() is where every frame waits ~1 s. */
+		if(env_get("WIIU_NO_GAMEPAD_MIRROR", 0)) {
+			GX2GL_SetAutomaticDRCEnabled(0);
+			wiiu_log_raw("GamePad mirroring off (WIIU_NO_GAMEPAD_MIRROR)\n");
+		}
 	}
 
 	gl_window = window;
