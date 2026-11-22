@@ -183,6 +183,11 @@ void wiiu_init(void) {
 	 * threads (shader #includes, image decoders) overflowed that into the
 	 * heap, which crashed in unrelated places later. */
 	env_set_string("SDL_THREAD_STACK_SIZE", "1048576", true);
+
+	/* gx2gl + BC1/BC4 textures: every frame then waits ~1 s in
+	 * GX2DrawDone() (the GPU hangs until a timeout) and nothing shows.
+	 * Uncompressed textures render. env.txt can still set it to 0. */
+	env_set_string("TAISEI_BASISU_FORCE_UNCOMPRESSED", "1", false);
 	env_set_string("TAISEI_RENDERER", "gl33", true);
 
 	/* All of the log into taisei.log, with timestamps. */
