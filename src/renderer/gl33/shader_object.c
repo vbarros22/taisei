@@ -114,6 +114,21 @@ ShaderObject *gl33_shader_object_compile(ShaderSource *source) {
 			shobj->attribs[i].location = a->location;
 		}
 	} else {
+#ifdef __WIIU__
+		// Keep the exact source that failed, to compare with the same
+		// shader compiled on a PC (.github/workflows/wiiu-shaders.yml).
+		{
+			char path[64];
+			snprintf(path, sizeof(path), WIIU_APP_DIR "/failed_shader_%u.glsl", gl_handle);
+			FILE *f = fopen(path, "w");
+
+			if(f) {
+				fwrite(source->content, 1, source->content_size - 1, f);
+				fclose(f);
+				log_warn("Wrote the failed shader's source to %s", path);
+			}
+		}
+#endif
 		glDeleteShader(gl_handle);
 	}
 

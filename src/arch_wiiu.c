@@ -125,6 +125,33 @@ void wiiu_init(void) {
 	open_log();
 	wiiu_init_debug();
 
+	/* Optional NAME=value lines in env.txt next to the log: lets a test
+	 * flip Taisei's environment switches without a new build. */
+	{
+		FILE *env = fopen(WIIU_APP_DIR "/env.txt", "r");
+		char line[256];
+
+		while(env && fgets(line, sizeof(line), env)) {
+			char *eq = strchr(line, '=');
+			line[strcspn(line, "\r\n")] = 0;
+
+			if(line[0] == '#' || !eq) {
+				continue;
+			}
+
+			*eq = 0;
+			env_set_string(line, eq + 1, true);
+
+			char text[300];
+			snprintf(text, sizeof(text), "env.txt: %s=%s\n", line, eq + 1);
+			wiiu_log_raw(text);
+		}
+
+		if(env) {
+			fclose(env);
+		}
+	}
+
 	{
 		char text[96];
 		snprintf(text, sizeof(text), "Main thread: core %u, priority %d\n",
