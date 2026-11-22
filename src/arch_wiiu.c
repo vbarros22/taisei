@@ -27,10 +27,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <coreinit/core.h>
+#include <coreinit/thread.h>
 #include <coreinit/time.h>
+#include <malloc.h>
 #include <gx2/display.h>
 #include <gx2gl/present.h>
 #include <gx2gl/proc.h>
+#include <gx2gl/stats.h>
 #include <proc_ui/procui.h>
 #include <sysapp/launch.h>
 #include <whb/gfx.h>
@@ -51,6 +55,8 @@ static bool wiiu_leaving_foreground;
 
 static WiiUAtExitFn atexit_fns[8];
 static int num_atexit_fns;
+
+static OSThread *wiiu_main_thread;
 
 static int screen_width = 1920;
 static int screen_height = 1080;
@@ -108,10 +114,19 @@ void wiiu_init(void) {
 	WHBLogCafeInit();
 	WHBLogUdpInit();
 
+	wiiu_main_thread = OSGetCurrentThread();
+
 	mkdir(WIIU_APP_DIR, 0755);
 	chdir(WIIU_APP_DIR);
 	open_log();
 	wiiu_init_debug();
+
+	{
+		char text[96];
+		snprintf(text, sizeof(text), "Main thread: core %u, priority %d\n",
+			(unsigned)OSGetCoreId(), (int)OSGetThreadPriority(wiiu_main_thread));
+		wiiu_log_raw(text);
+	}
 
 	switch(GX2GetSystemTVScanMode()) {
 		case GX2_TV_SCAN_MODE_480I:
@@ -161,6 +176,33 @@ void wiiu_frame(void) {
 		wiiu_leaving_foreground = true;
 		wiiu_exit(0);
 	}
+}
+
+void wiiu_thread_started(void) {
+	/* Cafe OS doesn't time-slice: a thread at the main thread's priority
+	 * or above, on its core, can keep it from running for seconds (the
+	 * texture loaders did, while transcoding). Lower numbers are higher
+	 * priorities. Cores 0 and 2 are otherwise idle. */
+	OSThread *thread = OSGetCurrentThread();
+	int before = OSGetThreadPriority(thread);
+	int prio = OSGetThreadPriority(wiiu_main_thread) + 1;
+
+	if(prio > 31) {
+		prio = 31;
+	}
+
+	if(before < prio) {
+		OSSetThreadPriority(thread, prio);
+	}
+
+	OSSetThreadAffinity(thread, OS_THREAD_ATTRIB_AFFINITY_CPU0 | OS_THREAD_ATTRIB_AFFINITY_CPU2);
+	OSYieldThread();
+
+	char text[128];
+	snprintf(text, sizeof(text), "Thread '%s': priority %d -> %d, now on core %u\n",
+		OSGetThreadName(thread) ? OSGetThreadName(thread) : "?",
+		before, (int)OSGetThreadPriority(thread), (unsigned)OSGetCoreId());
+	wiiu_log_raw(text);
 }
 
 int wiiu_atexit(WiiUAtExitFn fn) {
@@ -319,5 +361,59 @@ int wiiu_gl_get_swap_interval(void) {
 
 void wiiu_gl_swap_window(SDL_Window *window) {
 	(void)window;
+
+	/* No KHR_debug in gx2gl: the first GL errors go to the log this way. */
+	static unsigned (*get_error)(void);
+	static int frame, reported_errors, reported_slow;
+	unsigned err;
+	char line[512];
+
+	if(!get_error) {
+		get_error = (unsigned (*)(void))GX2GL_GetProcAddress("glGetError");
+	}
+
+	while(get_error && (err = get_error()) != 0 && reported_errors < 60) {
+		snprintf(line, sizeof(line), "GL error 0x%04x in frame %d\n", err, frame);
+		wiiu_log_raw(line);
+		reported_errors++;
+	}
+
+	frame++;
 	GX2GL_Present();
+
+	/* What gx2gl did in slow frames, and in one frame every 10 s. */
+	static OSTime last, last_sample;
+	OSTime now = OSGetTime();
+	int ms = last ? (int)OSTicksToMilliseconds(now - last) : 0;
+	bool sample = OSTicksToMilliseconds(now - last_sample) >= 10000;
+	last = now;
+
+	if((ms >= 40 || sample) && reported_slow < 3000) {
+		GX2GL_FrameStats st;
+		struct mallinfo mi = mallinfo();
+
+		GX2GL_GetFrameStats(&st);
+		snprintf(line, sizeof(line),
+			"%s frame %d: %d ms | draw %u/%ums buf %u(%uKB)/%ums unif %u/%ums "
+			"bind %u/%ums tex %u/%ums(alloc %u copy %u) mip %u/%ums shd %u+%u/%ums prog %u/%ums "
+			"clr %u/%ums other %u/%ums | gpu %ums vsync %ums | heap %uMB\n",
+			sample ? "sample" : "SLOW", frame, ms,
+			st.draws, st.draw_us / 1000, st.buffer_uploads, st.buffer_bytes / 1024,
+			st.buffer_us / 1000, st.uniform_calls, st.uniform_us / 1000,
+			st.texture_binds, st.texture_bind_us / 1000,
+			st.texture_uploads, st.texture_upload_us / 1000,
+			st.texture_storage_us / 1000, st.texture_copy_us / 1000,
+			st.mipmap_generations, st.mipmap_us / 1000,
+			st.shader_compiles, st.program_links, st.shader_us / 1000,
+			st.program_switches, st.program_switch_us / 1000,
+			st.clears, st.clear_us / 1000, st.other_calls, st.other_us / 1000,
+			st.finish_us / 1000, st.vsync_us / 1000,
+			(unsigned)(mi.uordblks / (1024 * 1024)));
+		wiiu_log_raw(line);
+		reported_slow++;
+
+		if(sample) {
+			last_sample = now;
+		}
+	}
 }

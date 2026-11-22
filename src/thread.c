@@ -118,6 +118,10 @@ static int SDLCALL sdlthread_entry(void *data) {
 		log_sdl_error(LOG_WARN, "SDL_SetThreadPriority");
 	}
 
+#ifdef __WIIU__
+	wiiu_thread_started();
+#endif
+
 	tcd.thrd->data = tcd.proc(tcd.userdata);
 
 	attr_unused bool cas_ok;

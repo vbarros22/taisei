@@ -29,6 +29,10 @@ const char *wiiu_get_program_dir(void);
 int wiiu_get_screen_width(void);
 int wiiu_get_screen_height(void);
 
+/* Called first thing in every thread Taisei creates: moves it off the main
+ * thread's core, below the main thread's priority. */
+void wiiu_thread_started(void);
+
 /* The log on the SD card (taisei.log), with milliseconds since startup. */
 void wiiu_log_raw(const char *string);
 void wiiu_sync_log(void);

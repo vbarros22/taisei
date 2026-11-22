@@ -28,6 +28,8 @@
 #include <coreinit/exception.h>
 #include <coreinit/thread.h>
 #include <coreinit/time.h>
+#include <proc_ui/procui.h>
+#include <stdlib.h>
 
 #include "arch_wiiu.h"
 
@@ -117,6 +119,16 @@ CrashReport(void)
 	wiiu_log_raw(crash_text);
 	wiiu_log_raw("\n");
 	wiiu_sync_log();
+
+	if (!ProcUIInForeground())
+	{
+		/* Leaving through HOME: the screen isn't ours any more and
+		   OSFatal() would just hang the console. Finish leaving. */
+		wiiu_log_raw("In the background: exiting instead of OSFatal()\n");
+		wiiu_sync_log();
+		_Exit(1);
+	}
+
 	OSFatal(crash_text);
 }
 
