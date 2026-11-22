@@ -232,7 +232,21 @@ static void gl33_texture_set(Texture *tex, uint mipmap, uint layer, const Pixmap
 	GLenum xfmt = xfer->gl_format;
 	GLenum xtype = xfer->gl_type;
 
-	if(tex->fmt_info->flags & GLTEX_COMPRESSED) {
+	if((tex->fmt_info->flags & GLTEX_COMPRESSED) && !glext.texture_storage) {
+		// Without ARB_texture_storage the storage of compressed textures isn't
+		// allocated in advance (see gl33_texture_create), so define the whole
+		// level here; glCompressedTexSubImage2D would hit unallocated storage.
+		glCompressedTexImage2D(
+			gl_target,
+			mipmap,
+			ifmt,
+			width,
+			height,
+			0,
+			image->data_size,
+			image_data
+		);
+	} else if(tex->fmt_info->flags & GLTEX_COMPRESSED) {
 		glCompressedTexSubImage2D(
 			gl_target,
 			mipmap,
