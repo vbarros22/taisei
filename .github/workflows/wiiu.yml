@@ -74,6 +74,9 @@ jobs:
           tar xzf gx2gl-sdk.tar.gz
           mkdir -p deps/cafeglsl/build-cafe/cafecompiler
           cp gx2gl-sdk/lib/libcafeglsl.a deps/cafeglsl/build-cafe/cafecompiler/
+          # Debug: guard zones after gx2gl's allocations, to catch writes
+          # past the end of textures and buffers (reported in taisei.log).
+          git -C deps/gx2gl apply "$PWD/wiiu/gx2gl-mem-guard.patch"
           {
             cmake -S deps/gx2gl -B build-gx2gl -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/WiiU.cmake" \
@@ -121,6 +124,8 @@ jobs:
           file "$elf" || true
           "$DEVKITPPC/bin/powerpc-eabi-readelf" -S "$elf" | grep -E "rela|symtab|rplwrap|fimport" | head -20 || true
           "$DEVKITPPC/bin/powerpc-eabi-nm" "$elf" | grep -c "__rplwrap" || true
+          # Which malloc is linked (newlib's or wut's), and its locks.
+          "$DEVKITPPC/bin/powerpc-eabi-nm" "$elf" | grep -E " (_malloc_r|_free_r|_memalign_r|__malloc_lock|__malloc_unlock|__syscall_malloc_lock|__wut_[a-z_]*malloc[a-z_]*|__init_wut_[a-z_]*|MEMAllocFromDefaultHeapEx|__retarget_lock_acquire_recursive|__syscall_lock_acquire_recursive)$" || true
           mkdir -p artifacts/sd/wiiu/apps/taisei
           cp "$elf" artifacts/taisei.elf
           if ! "$DEVKITPRO/tools/bin/elf2rpl" artifacts/taisei.elf artifacts/taisei.rpx; then

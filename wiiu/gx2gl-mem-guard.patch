@@ -1,0 +1,137 @@
+diff --git a/src/mem/gl_mem.cpp b/src/mem/gl_mem.cpp
+index 516c799..16a07ce 100644
+--- a/src/mem/gl_mem.cpp
++++ b/src/mem/gl_mem.cpp
+@@ -24,6 +24,99 @@ typedef struct {
+ 
+ static GLMemState g_mem_state;
+ 
++/* ---- Taisei debug: guard zones after every allocation ----
++ * Every block gets GUARD_SIZE bytes of a known pattern after it, flushed
++ * to memory. A GPU or CPU write past the end of a texture, buffer or
++ * render target changes them; that's reported through gx2gl_debug_report
++ * when the block is freed, and for all live blocks every few hundred
++ * frames. The allocator's own headers sit right after the blocks, so
++ * such a write would otherwise corrupt the heap. */
++extern "C" void (*gx2gl_debug_report)(const char *text);
++void (*gx2gl_debug_report)(const char *text) = NULL;
++
++#define GUARD_SIZE 4096u
++#define GUARD_BYTE 0xA5u
++
++typedef struct {
++    uint8_t *ptr;
++    uint32_t size;
++    uint32_t reported;
++} GuardedBlock;
++
++static GuardedBlock *g_blocks;
++static uint32_t g_block_count, g_block_capacity;
++static uint32_t g_guard_reports;
++
++static void guard_report(const char *format, ...) {
++    char buffer[256];
++    va_list args;
++
++    if (!gx2gl_debug_report || g_guard_reports >= 200) return;
++    g_guard_reports++;
++    va_start(args, format);
++    vsnprintf(buffer, sizeof(buffer), format, args);
++    va_end(args);
++    gx2gl_debug_report(buffer);
++}
++
++static void guard_check(GuardedBlock *block, const char *when) {
++    uint8_t *guard = block->ptr + block->size;
++
++    if (block->reported) return;
++    /* Only this code writes the guard, and it was flushed: invalidating
++       it just makes GPU writes visible. */
++    DCInvalidateRange(guard, GUARD_SIZE);
++    for (uint32_t i = 0; i < GUARD_SIZE; ++i) {
++        if (guard[i] != GUARD_BYTE) {
++            uint32_t last = i;
++            for (uint32_t j = i; j < GUARD_SIZE; ++j) {
++                if (guard[j] != GUARD_BYTE) last = j;
++            }
++            guard_report("gx2gl guard (%s): block %p of %u bytes overwritten "
++                         "from +%u to +%u past its end (first byte %02x)\n",
++                         when, block->ptr, (unsigned)block->size,
++                         (unsigned)i, (unsigned)last, guard[i]);
++            block->reported = 1;
++            return;
++        }
++    }
++}
++
++static void guard_add(uint8_t *ptr, uint32_t size) {
++    if (g_block_count == g_block_capacity) {
++        uint32_t capacity = g_block_capacity ? g_block_capacity * 2u : 1024u;
++        GuardedBlock *blocks =
++            (GuardedBlock *)realloc(g_blocks, capacity * sizeof(GuardedBlock));
++        if (!blocks) return;
++        g_blocks = blocks;
++        g_block_capacity = capacity;
++    }
++    memset(ptr + size, GUARD_BYTE, GUARD_SIZE);
++    DCFlushRange(ptr + size, GUARD_SIZE);
++    g_blocks[g_block_count].ptr = ptr;
++    g_blocks[g_block_count].size = size;
++    g_blocks[g_block_count].reported = 0;
++    g_block_count++;
++}
++
++static void guard_remove(uint8_t *ptr) {
++    for (uint32_t i = g_block_count; i-- > 0;) {
++        if (g_blocks[i].ptr == ptr) {
++            guard_check(&g_blocks[i], "free");
++            g_blocks[i] = g_blocks[--g_block_count];
++            return;
++        }
++    }
++}
++
++static void guard_check_all(void) {
++    static uint32_t frames;
++    if (++frames % 300u != 0) return;
++    for (uint32_t i = 0; i < g_block_count; ++i) {
++        guard_check(&g_blocks[i], "frame");
++    }
++}
++
+ static void log_mem_step(const char *format, ...) {
+ #if GX2GL_ENABLE_VERBOSE_FILE_LOGS
+     char buffer[512];
+@@ -102,7 +195,7 @@ void* gl_mem_alloc(gl_mem_type_t type, size_t size, uint32_t align) {
+         return NULL;
+     }
+ 
+-    ptr = memalign((size_t)normalized_align, size);
++    ptr = memalign((size_t)normalized_align, ((size + 63u) & ~63u) + GUARD_SIZE);
+     if (!ptr) {
+         log_mem_step("gl_mem_alloc: failed type=%s size=%u align=%u normalized=%u",
+                      mem_type_name(type), (unsigned int)size,
+@@ -111,6 +204,7 @@ void* gl_mem_alloc(gl_mem_type_t type, size_t size, uint32_t align) {
+     }
+ 
+     g_mem_state.live_allocations++;
++    guard_add((uint8_t *)ptr, (uint32_t)size);
+     return ptr;
+ }
+ 
+@@ -124,6 +218,7 @@ void gl_mem_free(gl_mem_type_t type, void* ptr) {
+     if (g_mem_state.live_allocations > 0) {
+         g_mem_state.live_allocations--;
+     }
++    guard_remove((uint8_t *)ptr);
+     free(ptr);
+ }
+ 
+@@ -168,6 +263,7 @@ void gl_mem_frame_end(void) {
+     /* WHBGfxFinishRender() has waited for the GPU. */
+     g_frame_ring_used = 0;
+     run_deferred();
++    guard_check_all();
+ }
+ 
+ void gl_mem_defer(void (*fn)(void *arg), void *arg) {

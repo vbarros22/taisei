@@ -58,6 +58,9 @@ static int num_atexit_fns;
 
 static OSThread *wiiu_main_thread;
 
+/* gx2gl's guard zone reports (wiiu/gx2gl-mem-guard.patch). */
+extern void (*gx2gl_debug_report)(const char *text);
+
 static int screen_width = 1920;
 static int screen_height = 1080;
 
@@ -115,6 +118,7 @@ void wiiu_init(void) {
 	WHBLogUdpInit();
 
 	wiiu_main_thread = OSGetCurrentThread();
+	gx2gl_debug_report = wiiu_log_raw;
 
 	mkdir(WIIU_APP_DIR, 0755);
 	chdir(WIIU_APP_DIR);
