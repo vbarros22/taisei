@@ -37,6 +37,7 @@ void wiiu_thread_started(void);
 enum { WIIU_PHASE_LOGIC, WIIU_PHASE_RENDER, WIIU_PHASE_WAIT, WIIU_PHASE_COUNT };
 uint64_t wiiu_now_us(void);
 void wiiu_phase_add(int phase, uint64_t start_us);
+void wiiu_render_started(void);
 
 /* The log on the SD card (taisei.log), with milliseconds since startup. */
 void wiiu_log_raw(const char *string);

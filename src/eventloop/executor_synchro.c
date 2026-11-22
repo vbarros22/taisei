@@ -100,6 +100,7 @@ begin_frame:
 		if((uncapped_rendering || !(frame_num % get_effective_frameskip())) && !global.is_replay_verification) {
 #ifdef __WIIU__
 			uint64_t wiiu_render_start = wiiu_now_us();
+			wiiu_render_started();
 #endif
 			run_render_frame(frame);
 #ifdef __WIIU__

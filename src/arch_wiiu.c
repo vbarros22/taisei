@@ -223,6 +223,12 @@ void wiiu_thread_started(void) {
 }
 
 static uint64_t phase_us[WIIU_PHASE_COUNT];
+static uint64_t render_start_us;
+
+void wiiu_render_started(void) {
+	render_start_us = wiiu_now_us();
+}
+
 static uint32_t phase_count[WIIU_PHASE_COUNT];
 
 uint64_t wiiu_now_us(void) {
@@ -408,7 +414,11 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 	}
 
 	frame++;
+	OSTime present_start = OSGetSystemTime();
 	GX2GL_Present();
+	unsigned present_ms = (unsigned)OSTicksToMilliseconds(OSGetSystemTime() - present_start);
+	/* Rendering up to the swap, without gx2gl's present. */
+	unsigned before_ms = render_start_us ? (unsigned)((OSTicksToMicroseconds(present_start) - render_start_us) / 1000) : 0;
 
 	/* What gx2gl did in slow frames, and in one frame every 10 s. */
 	static OSTime last, last_sample;
@@ -457,9 +467,10 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 			heap_mb, arena_mb, mallinfo_ms);
 		wiiu_log_raw(line);
 		snprintf(line, sizeof(line),
-			"    main loop: logic %ux/%ums render %ux/%ums wait %ux/%ums | taisei clock %d ms\n",
+			"    main loop: logic %ux/%ums render %ux/%ums (to swap %ums, present %ums) wait %ux/%ums | taisei clock %d ms\n",
 			phase_count[WIIU_PHASE_LOGIC], (unsigned)(phase_us[WIIU_PHASE_LOGIC] / 1000),
 			phase_count[WIIU_PHASE_RENDER], (unsigned)(phase_us[WIIU_PHASE_RENDER] / 1000),
+			before_ms, present_ms,
 			phase_count[WIIU_PHASE_WAIT], (unsigned)(phase_us[WIIU_PHASE_WAIT] / 1000),
 			taisei_ms);
 		wiiu_log_raw(line);

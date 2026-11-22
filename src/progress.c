@@ -934,7 +934,13 @@ static SDL_RWops *progress_open_file_write(void) {
 	SDL_RWops *file = vfs_open(PROGRESS_FILE, VFS_MODE_WRITE);
 
 	if(file) {
+#ifdef __WIIU__
+		// Level 20 asks zstd for ~450 MB of tables (64 MB window): more
+		// than the Wii U has left. The progress file is a few KB anyway.
+		return SDL_RWWrapZstdWriter(file, 6, true);
+#else
 		return SDL_RWWrapZstdWriter(file, 20, true);
+#endif
 	}
 
 	log_error("VFS error: %s", vfs_get_error());
