@@ -9,7 +9,14 @@
 #include "zipfile.h"
 #include "zipfile_impl.h"
 
+#ifdef __WIIU__
+// Shader #includes read back empty on the Wii U: show why.
+#define LOG_SDL_ERROR log_error("zip source: SDL error: %s (stream at %lld of %lld)", SDL_GetError(), \
+	tls && tls->stream ? (long long)SDL_RWtell(tls->stream) : -1LL, \
+	tls && tls->stream ? (long long)SDL_RWsize(tls->stream) : -1LL)
+#else
 #define LOG_SDL_ERROR log_debug("SDL error: %s", SDL_GetError())
+#endif
 
 static zip_int64_t vfs_zipfile_srcfunc(void *userdata, void *data, zip_uint64_t len, zip_source_cmd_t cmd) {
 	VFSZipNode *zipnode = userdata;

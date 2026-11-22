@@ -293,8 +293,9 @@ reread:
 
 #ifdef __WIIU__
 	if(lines_read == 0) {
-		log_error("%s: no lines read (size %lld)%s", fstate->path,
-			(long long)SDL_RWsize(stream), read_attempts < 3 ? ", reading it again" : "");
+		log_error("%s: no lines read (size %lld, SDL error: %s)%s", fstate->path,
+			(long long)SDL_RWsize(stream), SDL_GetError(),
+			read_attempts < 3 ? ", reading it again" : "");
 
 		if(read_attempts++ < 3) {
 			SDL_RWclose(stream);

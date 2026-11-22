@@ -140,7 +140,13 @@ libzip_sucks:
 
 	if(UNLIKELY(bytes_read < 0)) {
 		SDL_SetError("ZIP error: %s", zip_error_strerror(zip_file_get_error(rwdata->file)));
+#ifdef __WIIU__
+		log_error("ZIP error reading entry %lld: %s",
+			(long long)((VFSZipPathNode*)rw->hidden.unknown.data2)->index,
+			zip_error_strerror(zip_file_get_error(rwdata->file)));
+#else
 		log_debug("ZIP error: %s", zip_error_strerror(zip_file_get_error(rwdata->file)));
+#endif
 		return 0;
 	}
 
