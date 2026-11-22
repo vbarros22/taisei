@@ -61,8 +61,6 @@ static int num_atexit_fns;
 
 static OSThread *wiiu_main_thread;
 
-/* gx2gl's guard zone reports (wiiu/gx2gl-mem-guard.patch). */
-extern void (*gx2gl_debug_report)(const char *text);
 
 static int screen_width = 1920;
 static int screen_height = 1080;
@@ -121,7 +119,6 @@ void wiiu_init(void) {
 	WHBLogUdpInit();
 
 	wiiu_main_thread = OSGetCurrentThread();
-	gx2gl_debug_report = wiiu_log_raw;
 
 	mkdir(WIIU_APP_DIR, 0755);
 	chdir(WIIU_APP_DIR);
@@ -429,13 +426,23 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 
 	if((ms >= 40 || sample) && reported_slow < 3000) {
 		GX2GL_FrameStats st;
-		struct mallinfo mi = mallinfo();
+		/* mallinfo() walks the whole heap: only in the 10 s samples,
+		 * timed, in case it is what makes frames slow. */
+		static unsigned heap_mb, arena_mb, mallinfo_ms;
+
+		if(sample) {
+			OSTime t0 = OSGetSystemTime();
+			struct mallinfo mi = mallinfo();
+			mallinfo_ms = (unsigned)OSTicksToMilliseconds(OSGetSystemTime() - t0);
+			heap_mb = (unsigned)(mi.uordblks / (1024 * 1024));
+			arena_mb = (unsigned)(mi.arena / (1024 * 1024));
+		}
 
 		GX2GL_GetFrameStats(&st);
 		snprintf(line, sizeof(line),
 			"%s frame %d: %d ms | draw %u/%ums buf %u(%uKB)/%ums unif %u/%ums "
 			"bind %u/%ums tex %u/%ums(alloc %u copy %u) mip %u/%ums shd %u+%u/%ums prog %u/%ums "
-			"clr %u/%ums other %u/%ums | gpu %ums vsync %ums | heap %uMB\n",
+			"clr %u/%ums other %u/%ums | gpu %ums vsync %ums | heap %u/%uMB (mallinfo %ums)\n",
 			sample ? "sample" : "SLOW", frame, ms,
 			st.draws, st.draw_us / 1000, st.buffer_uploads, st.buffer_bytes / 1024,
 			st.buffer_us / 1000, st.uniform_calls, st.uniform_us / 1000,
@@ -447,7 +454,7 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 			st.program_switches, st.program_switch_us / 1000,
 			st.clears, st.clear_us / 1000, st.other_calls, st.other_us / 1000,
 			st.finish_us / 1000, st.vsync_us / 1000,
-			(unsigned)(mi.uordblks / (1024 * 1024)));
+			heap_mb, arena_mb, mallinfo_ms);
 		wiiu_log_raw(line);
 		snprintf(line, sizeof(line),
 			"    main loop: logic %ux/%ums render %ux/%ums wait %ux/%ums | taisei clock %d ms\n",
