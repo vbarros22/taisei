@@ -125,7 +125,8 @@ ShaderObject *gl33_shader_object_compile(ShaderSource *source) {
 			if(f) {
 				fwrite(source->content, 1, source->content_size - 1, f);
 				fclose(f);
-				log_warn("Wrote the failed shader's source to %s", path);
+				log_warn("Wrote the failed shader's source (%zu bytes) to %s",
+					source->content_size - 1, path);
 			}
 		}
 #endif

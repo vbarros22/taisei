@@ -163,6 +163,23 @@ static bool glsl_process_file(GLSLFileParseState *fstate) {
 		stream = vfs_open(fstate->path, VFS_MODE_READ);
 	}
 
+#ifdef __WIIU__
+	// On the Wii U a shader once reached the GPU driver empty, and another
+	// one missing an #include's contents: a read from the zip coming back
+	// empty. No shader file is empty, so say which one and read it again.
+	if(stream && SDL_RWsize(stream) == 0) {
+		log_error("%s: read back empty, reading it again", fstate->path);
+		SDL_RWclose(stream);
+		stream = open
+			? open(fstate->path, fstate->global->options->file_open_callback_userdata)
+			: vfs_open(fstate->path, VFS_MODE_READ);
+
+		if(stream && SDL_RWsize(stream) == 0) {
+			log_error("%s: still empty", fstate->path);
+		}
+	}
+#endif
+
 	SDL_RWops *dest = fstate->global->dest;
 
 	if(!stream) {
@@ -174,8 +191,10 @@ static bool glsl_process_file(GLSLFileParseState *fstate) {
 
 	++fstate->lineno;
 	glsl_write_lineno(fstate);
+	attr_unused uint lines_read = 0;
 
 	while(SDL_RWgets_realloc(stream, &fstate->global->linebuf, &fstate->global->linebuf_size)) {
+		++lines_read;
 		char *p = fstate->global->linebuf;
 		skip_space(&p);
 
@@ -267,6 +286,12 @@ static bool glsl_process_file(GLSLFileParseState *fstate) {
 		fstate->lineno++;
 		glsl_write_lineno(fstate);
 	}
+
+#ifdef __WIIU__
+	if(lines_read == 0) {
+		log_error("%s: no lines read (size %lld)", fstate->path, (long long)SDL_RWsize(stream));
+	}
+#endif
 
 	SDL_RWclose(stream);
 	return true;
