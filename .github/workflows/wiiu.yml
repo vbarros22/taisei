@@ -74,6 +74,10 @@ jobs:
           tar xzf gx2gl-sdk.tar.gz
           mkdir -p deps/cafeglsl/build-cafe/cafecompiler
           cp gx2gl-sdk/lib/libcafeglsl.a deps/cafeglsl/build-cafe/cafecompiler/
+          # glTexStorage2D / GL_ARB_texture_storage for gx2gl, until it is
+          # upstream: one allocation for all mip levels instead of one
+          # reallocation and copy per level.
+          git -C deps/gx2gl apply "$PWD/wiiu/gx2gl-texture-storage.patch"
           {
             cmake -S deps/gx2gl -B build-gx2gl -G Ninja \
               -DCMAKE_TOOLCHAIN_FILE="$DEVKITPRO/cmake/WiiU.cmake" \
