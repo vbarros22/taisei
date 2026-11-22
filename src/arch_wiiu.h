@@ -42,6 +42,10 @@ void wiiu_render_started(void);
 /* The log on the SD card (taisei.log), with milliseconds since startup. */
 void wiiu_log_raw(const char *string);
 void wiiu_sync_log(void);
+/* For the watchdog: skip instead of waiting when another thread holds
+ * the log (a thread stuck while writing would silence the watchdog). */
+void wiiu_try_log_raw(const char *string);
+void wiiu_try_sync_log(void);
 
 /* Crash handler and hang watchdog (arch_wiiu_debug.c). */
 void wiiu_init_debug(void);

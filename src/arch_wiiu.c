@@ -99,6 +99,28 @@ void wiiu_sync_log(void) {
 	}
 }
 
+void wiiu_try_log_raw(const char *string) {
+	if(!wiiu_log) {
+		WHBLogWrite(string);
+		return;
+	}
+
+	if(ftrylockfile(wiiu_log) == 0) {
+		wiiu_log_raw(string);
+		funlockfile(wiiu_log);
+	} else {
+		WHBLogWrite(string);
+	}
+}
+
+void wiiu_try_sync_log(void) {
+	if(wiiu_log && ftrylockfile(wiiu_log) == 0) {
+		fflush(wiiu_log);
+		fsync(fileno(wiiu_log));
+		funlockfile(wiiu_log);
+	}
+}
+
 static void open_log(void) {
 	/* Taisei's log goes to stdout, which goes to taisei.log (wiiu_init()
 	 * sends every level there and none to stderr). Flushing every line to

@@ -20,6 +20,7 @@
 #undef WUT_ALIGNAS
 #define WUT_ALIGNAS(x) __attribute__((aligned(x)))
 #include <malloc.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -192,21 +193,27 @@ WatchdogThread(int argc, void *argv)
 
 		/* Get the log onto the SD card, a crash or power off would
 		   lose what's still cached. */
-		wiiu_sync_log();
+		wiiu_try_sync_log();
 
 		if (watchdog_paused)
 		{
 			continue;
 		}
 
-		if (OSTicksToSeconds(OSGetSystemTime() - last_heartbeat) < 8)
+		int stalled = (int)OSTicksToSeconds(OSGetSystemTime() - last_heartbeat);
+
+		if (stalled < 8)
 		{
 			reported = 0;
 			continue;
 		}
 
-		/* Report a stall once, then again if it lasts another 30s. */
-		if (reported && reported++ < 30)
+		/* Report a stall once, then again if it lasts another 30s; and
+		   a hang of 60s on screen, as a crash would be: it may be
+		   holding the log or the SD card, so the log may stay silent. */
+		bool hang = stalled >= 60;
+
+		if (!hang && reported && reported++ < 30)
 		{
 			continue;
 		}
@@ -215,21 +222,29 @@ WatchdogThread(int argc, void *argv)
 
 		OSSuspendThread(main_thread);
 
-		while (!OSIsThreadSuspended(main_thread))
+		/* A thread waiting in the kernel may not get to a point where
+		   it suspends: its saved context still says where it waits. */
+		for (int i = 0; i < 200 && !OSIsThreadSuspended(main_thread); ++i)
 		{
 			OSSleepTicks(OSMillisecondsToTicks(1));
 		}
 
 		char text[1024];
 		FormatContext(text, sizeof(text),
-			"*** WATCHDOG: no progress for 8 seconds, main thread is at:",
+			hang ? "Taisei hung: no progress for 60 seconds, main thread is at:"
+			     : "*** WATCHDOG: no progress for 8 seconds, main thread is at:",
 			&main_thread->context);
 		OSResumeThread(main_thread);
 
-		wiiu_log_raw("\n");
-		wiiu_log_raw(text);
-		wiiu_log_raw("\n");
-		wiiu_sync_log();
+		wiiu_try_log_raw("\n");
+		wiiu_try_log_raw(text);
+		wiiu_try_log_raw("\n");
+		wiiu_try_sync_log();
+
+		if (hang)
+		{
+			OSFatal(text);
+		}
 	}
 
 	return 0;
