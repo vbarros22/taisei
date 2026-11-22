@@ -115,6 +115,18 @@ CrashReport(void)
 	}
 
 	FormatContext(crash_text, sizeof(crash_text), crash_what, &crash_context);
+
+	/* Which thread, and is sp on its own stack? Coroutine stacks are on
+	   the heap, outside of the thread's. */
+	{
+		OSThread *thread = OSGetCurrentThread();
+		const char *name = OSGetThreadName(thread);
+		size_t len = strlen(crash_text);
+		snprintf(crash_text + len, sizeof(crash_text) - len,
+			"thread %s (%s), stack %08x-%08x\n",
+			name ? name : "?", thread == main_thread ? "main" : "not main",
+			(uint32_t)thread->stackEnd, (uint32_t)thread->stackStart);
+	}
 	wiiu_log_raw("\n*** CRASH ***\n");
 	wiiu_log_raw(crash_text);
 	wiiu_log_raw("\n");

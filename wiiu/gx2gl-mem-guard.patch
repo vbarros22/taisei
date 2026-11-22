@@ -1,5 +1,5 @@
 diff --git a/src/mem/gl_mem.cpp b/src/mem/gl_mem.cpp
-index 516c799..16a07ce 100644
+index 516c799..4632507 100644
 --- a/src/mem/gl_mem.cpp
 +++ b/src/mem/gl_mem.cpp
 @@ -24,6 +24,99 @@ typedef struct {
@@ -10,13 +10,13 @@ index 516c799..16a07ce 100644
 + * Every block gets GUARD_SIZE bytes of a known pattern after it, flushed
 + * to memory. A GPU or CPU write past the end of a texture, buffer or
 + * render target changes them; that's reported through gx2gl_debug_report
-+ * when the block is freed, and for all live blocks every few hundred
-+ * frames. The allocator's own headers sit right after the blocks, so
++ * when the block is freed, and for all live blocks every 10 frames.
++ * The allocator's own headers sit right after the blocks, so
 + * such a write would otherwise corrupt the heap. */
 +extern "C" void (*gx2gl_debug_report)(const char *text);
 +void (*gx2gl_debug_report)(const char *text) = NULL;
 +
-+#define GUARD_SIZE 4096u
++#define GUARD_SIZE 16384u
 +#define GUARD_BYTE 0xA5u
 +
 +typedef struct {
@@ -93,7 +93,7 @@ index 516c799..16a07ce 100644
 +
 +static void guard_check_all(void) {
 +    static uint32_t frames;
-+    if (++frames % 300u != 0) return;
++    if (++frames % 10u != 0) return;
 +    for (uint32_t i = 0; i < g_block_count; ++i) {
 +        guard_check(&g_blocks[i], "frame");
 +    }
