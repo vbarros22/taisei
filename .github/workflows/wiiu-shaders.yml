@@ -1,0 +1,60 @@
+# Compiles all of Taisei's shaders the way the Wii U port does (Taisei's
+# #include processing, gx2gl's rewriting, CafeGLSL), on a PC: shader
+# failures show up here instead of one console test at a time.
+name: Wii U shaders
+
+on:
+  push:
+    branches: [wiiu]
+    paths:
+      - 'resources/**/shader/**'
+      - 'wiiu/shadertest/**'
+      - '.github/workflows/wiiu-shaders.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GX2GL_REPOSITORY: vbarros22/gx2gl
+  GX2GL_REF: geometry-shaders
+  CAFEGLSL_REPOSITORY: vbarros22/cafeglsl
+  CAFEGLSL_BRANCH: geometry-shaders
+
+jobs:
+  shaders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GX2GL_REPOSITORY }}
+          ref: ${{ env.GX2GL_REF }}
+          path: deps/gx2gl
+
+      - name: Get CafeGLSL's PC compiler
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id="$(gh run list -R "$CAFEGLSL_REPOSITORY" -b "$CAFEGLSL_BRANCH" -w Build -s success -L 1 --json databaseId --jq '.[0].databaseId')"
+          echo "CafeGLSL build run: $run_id"
+          gh run download "$run_id" -R "$CAFEGLSL_REPOSITORY" -n cafeglsl-linux-x86_64 -D cafeglsl
+          find cafeglsl -maxdepth 3 | head -20
+          glslc="$(find cafeglsl -name glslcompiler -type f | head -1)"
+          chmod +x "$glslc"
+          echo "GLSLC=$PWD/$glslc" >> "$GITHUB_ENV"
+
+      - name: Compile the shaders
+        run: |
+          wiiu/shadertest/run.sh resources/00-taisei.pkgdir/shader deps/gx2gl "$GLSLC" out
+          { echo '```'; cat out/summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          cat out/summary.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wiiu-shader-results
+          path: out/failed
+          if-no-files-found: ignore
