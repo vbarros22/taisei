@@ -596,6 +596,35 @@ static bool texture_loader_basisu_init_mipmaps(
 	}
 
 	int mip_bias = env_get("TAISEI_BASISU_MIP_BIAS", 0);
+#ifdef __WIIU__
+	/*
+	 * Textures are uncompressed on the Wii U and the heap runs out near
+	 * 600 MB: the transcoder then writes into a NULL pixmap (DSI at 3).
+	 * Stage 2's textures alone take 323 MB at full size. 3D material
+	 * textures load at most 1024 px on a side, the rest at most 2048.
+	 * Not sprite atlases: sprites give their regions in pixels of the
+	 * full-size atlas, and a smaller atlas showed the wrong sprites.
+	 */
+	if(strncmp(ld->st->name, "atlas_", 6)) {
+		static const char *const material_suffixes[] = {
+			"_diffuse", "_normal", "_ambient", "_roughness", "_ao", "_depth",
+		};
+		uint32_t limit = 2048;
+		for(uint i = 0; i < ARRAY_SIZE(material_suffixes); ++i) {
+			if(strendswith(ld->st->name, material_suffixes[i])) {
+				limit = 1024;
+				break;
+			}
+		}
+		basist_image_level_desc level0;
+		if(basist_transcoder_get_image_level_desc(bld->tc, ref_img->image_index, 0, &level0)) {
+			while(mip_bias < total_levels - 1 &&
+				((level0.orig_width >> mip_bias) > limit || (level0.orig_height >> mip_bias) > limit)) {
+				++mip_bias;
+			}
+		}
+	}
+#endif
 	mip_bias = clamp(mip_bias, 0, total_levels - 1);
 	{
 		int max_levels = env_get("TAISEI_BASISU_MAX_MIP_LEVELS", 0);
