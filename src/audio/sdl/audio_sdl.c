@@ -79,6 +79,14 @@ static bool init_audio_device(SDL_AudioSpec *spec) {
 	want.format = AUDIO_FORMAT;
 	want.freq = AUDIO_FREQ;
 	want.samples = config_get_int(CONFIG_MIXER_CHUNKSIZE);
+#ifdef __WIIU__
+	/* 512 samples is under 11 ms: the mixer, decoding the music on a
+	 * 1.2 GHz core, ran dry when a boss fight added sounds, and the
+	 * sound broke up and crackled from then on. */
+	if(want.samples < 2048) {
+		want.samples = 2048;
+	}
+#endif
 
 	// NOTE: StreamPlayer expects stereo float32 samples.
 	uint allow_changes = SDL_AUDIO_ALLOW_FREQUENCY_CHANGE;
@@ -88,6 +96,7 @@ static bool init_audio_device(SDL_AudioSpec *spec) {
 	#endif
 
 	audio.device = SDL_OpenAudioDevice(NULL, false, &want, &have, allow_changes);
+	log_info("Audio buffer: asked %u samples, got %u", want.samples, have.samples);
 
 	if(audio.device == 0) {
 		log_sdl_error(LOG_ERROR, "SDL_OpenAudioDevice");
