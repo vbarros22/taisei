@@ -11,6 +11,9 @@
 #include "global.h"
 #include "thread.h"
 #include "util/env.h"
+#ifdef __WIIU__
+#include "transition.h"
+#endif
 
 void eventloop_run(void) {
 	assert(thread_current_is_main());
@@ -97,7 +100,13 @@ begin_frame:
 			}
 		}
 
-		if((uncapped_rendering || !(frame_num % get_effective_frameskip())) && !global.is_replay_verification) {
+		bool render_this_frame = uncapped_rendering || !(frame_num % get_effective_frameskip());
+#ifdef __WIIU__
+		/* With frame skipping, the last frame of a fade could be skipped,
+		 * leaving a half-faded image on screen through a long load. */
+		render_this_frame = render_this_frame || transition.state != TRANS_IDLE;
+#endif
+		if(render_this_frame && !global.is_replay_verification) {
 #ifdef __WIIU__
 			uint64_t wiiu_render_start = wiiu_now_us();
 			wiiu_render_started();
