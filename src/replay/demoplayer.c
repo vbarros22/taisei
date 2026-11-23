@@ -56,9 +56,16 @@ void demoplayer_init(void) {
 		return;
 	}
 
+#ifdef __WIIU__
+	/* No attract-mode demos: they load later stages, which take long
+	 * enough on the Wii U that an idle menu looked frozen. */
+	dplr.demo_files = NULL;
+	dplr.num_demo_files = 0;
+#else
 	dplr.demo_files = vfs_dir_list_sorted(
 		DEMOPLAYER_DIR_PATH, &dplr.num_demo_files, vfs_dir_list_order_ascending, demo_path_filter
 	);
+#endif
 
 	if(demoplayer_check_demos()) {
 		log_info("Found %zu demo files", dplr.num_demo_files);
