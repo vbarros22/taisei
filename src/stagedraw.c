@@ -92,6 +92,11 @@ bool stage_draw_is_initialized(void) {
 static double fb_scale(void) {
 	float vp_width, vp_height;
 	video_get_viewport_size(&vp_width, &vp_height);
+#ifdef __WIIU__
+	/* The Wii U GPU can't fill the stage at 1080p: render it at the 720p
+	 * size and let the final composite scale it up. */
+	if(vp_height > 720.0f) vp_height = 720.0f;
+#endif
 	return (double)vp_height / SCREEN_H;
 }
 

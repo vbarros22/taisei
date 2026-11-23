@@ -481,7 +481,7 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 	/* Rendering up to the swap, without gx2gl's present. */
 	unsigned before_ms = render_start_us ? (unsigned)((OSTicksToMicroseconds(present_start) - render_start_us) / 1000) : 0;
 
-	/* What gx2gl did in slow frames, and in one frame every 10 s. */
+	/* What gx2gl did in hitches (>= 100 ms), and in one frame every 10 s. */
 	static OSTime last, last_sample;
 	OSTime now = OSGetTime();
 	int ms = last ? (int)OSTicksToMilliseconds(now - last) : 0;
@@ -495,7 +495,9 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 	int taisei_ms = last_taisei ? (int)((taisei_now - last_taisei) / (HRTIME_RESOLUTION / 1000)) : 0;
 	last_taisei = taisei_now;
 
-	if((ms >= 40 || sample) && reported_slow < 3000) {
+	/* Only hitches: logging every slow frame writes the SD card each frame,
+	 * which competes with the music streaming from it. */
+	if((ms >= 100 || sample) && reported_slow < 3000) {
 		GX2GL_FrameStats st;
 		/* mallinfo() walks the whole heap: only in the 10 s samples,
 		 * timed, in case it is what makes frames slow. */
