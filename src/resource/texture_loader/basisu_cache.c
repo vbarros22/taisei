@@ -58,6 +58,13 @@ bool texture_loader_basisu_load_cached(
 ) {
 	char path[ENTRY_PATH_SIZE];
 
+#ifdef __WIIU__
+	/* No transcode cache on the Wii U: entries cut short by a crash or a
+	 * power-off crashed the zstd reader later, and writing them to the SD
+	 * card during play competes with everything else on it. */
+	return false;
+#endif
+
 	if(!texture_loader_basisu_make_cache_path(basisu_hash, tc_params, sizeof(path), path)) {
 		return false;
 	}
@@ -160,6 +167,10 @@ bool texture_loader_basisu_cache(
 	const Pixmap *pixmap
 ) {
 	char path[ENTRY_PATH_SIZE];
+
+#ifdef __WIIU__
+	return false;
+#endif
 
 	if(!texture_loader_basisu_make_cache_path(basisu_hash, tc_params, sizeof(path), path)) {
 		return false;
