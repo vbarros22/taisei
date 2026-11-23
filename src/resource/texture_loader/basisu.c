@@ -601,18 +601,19 @@ static bool texture_loader_basisu_init_mipmaps(
 	 * Textures are uncompressed on the Wii U and the heap runs out near
 	 * 600 MB: the transcoder then writes into a NULL pixmap (DSI at 3).
 	 * Stage 2's textures alone take 323 MB at full size. 3D material
-	 * textures load at most 1024 px on a side, the rest at most 2048.
+	 * colour maps load at most 1024 px on a side, their other maps (normal,
+	 * AO, roughness...) at most 512, the rest at most 2048.
 	 * Not sprite atlases: sprites give their regions in pixels of the
 	 * full-size atlas, and a smaller atlas showed the wrong sprites.
 	 */
 	if(strncmp(ld->st->name, "atlas_", 6)) {
 		static const char *const material_suffixes[] = {
-			"_diffuse", "_normal", "_ambient", "_roughness", "_ao", "_depth",
+			"_normal", "_ambient", "_roughness", "_ao", "_depth",
 		};
-		uint32_t limit = 2048;
+		uint32_t limit = strendswith(ld->st->name, "_diffuse") ? 1024 : 2048;
 		for(uint i = 0; i < ARRAY_SIZE(material_suffixes); ++i) {
 			if(strendswith(ld->st->name, material_suffixes[i])) {
-				limit = 1024;
+				limit = 512;
 				break;
 			}
 		}

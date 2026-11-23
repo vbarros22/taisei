@@ -31,6 +31,8 @@
 #include <unistd.h>
 
 #include <coreinit/core.h>
+#include <coreinit/memexpheap.h>
+#include <coreinit/memheap.h>
 #include <coreinit/thread.h>
 #include <coreinit/time.h>
 #include <malloc.h>
@@ -514,7 +516,7 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 		GX2GL_FrameStats st;
 		/* mallinfo() walks the whole heap: only in the 10 s samples,
 		 * timed, in case it is what makes frames slow. */
-		static unsigned heap_mb, arena_mb, mallinfo_ms;
+		static unsigned heap_mb, arena_mb, mallinfo_ms, mem2_free_mb, mem2_block_mb;
 
 		if(sample) {
 			OSTime t0 = OSGetSystemTime();
@@ -522,13 +524,16 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 			mallinfo_ms = (unsigned)OSTicksToMilliseconds(OSGetSystemTime() - t0);
 			heap_mb = (unsigned)(mi.uordblks / (1024 * 1024));
 			arena_mb = (unsigned)(mi.arena / (1024 * 1024));
+			MEMHeapHandle mem2 = MEMGetBaseHeapHandle(MEM_BASE_HEAP_MEM2);
+			mem2_free_mb = (unsigned)(MEMGetTotalFreeSizeForExpHeap(mem2) / (1024 * 1024));
+			mem2_block_mb = (unsigned)(MEMGetAllocatableSizeForExpHeapEx(mem2, 4) / (1024 * 1024));
 		}
 
 		GX2GL_GetFrameStats(&st);
 		snprintf(line, sizeof(line),
 			"%s frame %d: %d ms | draw %u/%ums buf %u(%uKB)/%ums unif %u/%ums "
 			"bind %u/%ums tex %u/%ums(alloc %u copy %u) mip %u/%ums shd %u+%u/%ums prog %u/%ums "
-			"clr %u/%ums other %u/%ums | gpu %ums vsync %ums | heap %u/%uMB (mallinfo %ums)\n",
+			"clr %u/%ums other %u/%ums | gpu %ums vsync %ums | heap %u/%uMB mem2 free %uMB, largest %uMB (mallinfo %ums)\n",
 			sample ? "sample" : "SLOW", frame, ms,
 			st.draws, st.draw_us / 1000, st.buffer_uploads, st.buffer_bytes / 1024,
 			st.buffer_us / 1000, st.uniform_calls, st.uniform_us / 1000,
@@ -540,7 +545,7 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 			st.program_switches, st.program_switch_us / 1000,
 			st.clears, st.clear_us / 1000, st.other_calls, st.other_us / 1000,
 			st.finish_us / 1000, st.vsync_us / 1000,
-			heap_mb, arena_mb, mallinfo_ms);
+			heap_mb, arena_mb, mem2_free_mb, mem2_block_mb, mallinfo_ms);
 		wiiu_log_raw(line);
 		if(st.slowest_call && st.slowest_us >= 20000) {
 			snprintf(line, sizeof(line), "    slowest GL call: %ums in %s\n",
