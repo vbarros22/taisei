@@ -105,7 +105,7 @@ jobs:
           {
             meson setup build-wiiu \
               --cross-file wiiu-cross.ini \
-              --buildtype debugoptimized \
+              --buildtype release \
               --prefix /taisei \
               -Dkoishi:impl=fcontext &&
             meson compile -C build-wiiu --ninja-args=-k0 &&
