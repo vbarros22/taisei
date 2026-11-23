@@ -12,6 +12,9 @@
 #include "rwops/rwops_autobuf.h"
 #include "config.h"
 #include "util/io.h"
+#ifdef __WIIU__
+#include "arch_wiiu.h"
+#endif
 
 #define AUDIO_FREQ 48000
 #define AUDIO_FORMAT AUDIO_F32SYS
@@ -34,6 +37,13 @@ static struct {
 // BEGIN MISC
 
 static void SDLCALL mixer_callback(void *ignore, uint8_t *stream, int len) {
+#ifdef __WIIU__
+	static bool thread_set_up;
+	if(!thread_set_up) {
+		thread_set_up = true;
+		wiiu_audio_thread_started();
+	}
+#endif
 	memset(stream, audio.silence, len);
 	mixer_process(audio.mixer, len, stream);
 }

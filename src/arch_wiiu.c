@@ -276,6 +276,39 @@ void wiiu_thread_started(void) {
 	wiiu_log_raw(text);
 }
 
+void wiiu_audio_thread_started(void) {
+	/* SDL's audio thread mixes and decodes the music. On the main
+	 * thread's core it waits out every long frame (Cafe OS doesn't
+	 * time-slice), and the sound breaks up: give it core 2, above the
+	 * loader threads there. Only SDL's own thread, never AX's. */
+	OSThread *thread = OSGetCurrentThread();
+	const char *name = OSGetThreadName(thread);
+	int before = OSGetThreadPriority(thread);
+
+	if(!name || strncmp(name, "SDLAudio", 8)) {
+		char text[128];
+		snprintf(text, sizeof(text), "Audio callback on thread '%s' (core %u, priority %d): left alone\n",
+			name ? name : "?", (unsigned)OSGetCoreId(), before);
+		wiiu_log_raw(text);
+		return;
+	}
+
+	int prio = OSGetThreadPriority(wiiu_main_thread) - 1;
+	if(prio < 0) {
+		prio = 0;
+	}
+	if(before > prio) {
+		OSSetThreadPriority(thread, prio);
+	}
+	OSSetThreadAffinity(thread, OS_THREAD_ATTRIB_AFFINITY_CPU2);
+	OSYieldThread();
+
+	char text[128];
+	snprintf(text, sizeof(text), "Audio thread '%s': priority %d -> %d, now on core %u\n",
+		name, before, (int)OSGetThreadPriority(thread), (unsigned)OSGetCoreId());
+	wiiu_log_raw(text);
+}
+
 static uint64_t phase_us[WIIU_PHASE_COUNT];
 static uint64_t render_start_us;
 

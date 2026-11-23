@@ -32,6 +32,7 @@ int wiiu_get_screen_height(void);
 /* Called first thing in every thread Taisei creates: moves it off the main
  * thread's core, below the main thread's priority. */
 void wiiu_thread_started(void);
+void wiiu_audio_thread_started(void);
 
 /* Where the main loop's time goes, reported with the frame statistics. */
 enum { WIIU_PHASE_LOGIC, WIIU_PHASE_RENDER, WIIU_PHASE_WAIT, WIIU_PHASE_COUNT };
