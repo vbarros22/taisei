@@ -151,6 +151,25 @@ void gl33_framebuffer_prepare(Framebuffer *framebuffer) {
 		}
 
 		framebuffer->draw_buffers_dirty = false;
+
+#ifdef __WIIU__
+		// Diagnostics: report framebuffers the GL considers incomplete.
+		static int reports;
+		GLenum status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+		if(status != GL_FRAMEBUFFER_COMPLETE && reports < 16) {
+			++reports;
+			log_warn("Framebuffer %s incomplete: 0x%04x", framebuffer->debug_label, status);
+			for(uint i = 0; i < FRAMEBUFFER_MAX_ATTACHMENTS; ++i) {
+				Texture *t = framebuffer->attachments[i];
+				if(t) {
+					log_warn("  %s: %s %ux%u type %d internal 0x%04x mip %u",
+						attachment_str(i), t->debug_label, t->params.width, t->params.height,
+						t->params.type, t->fmt_info ? t->fmt_info->internal_format : 0,
+						framebuffer->attachment_mipmaps[i]);
+				}
+			}
+		}
+#endif
 	}
 }
 
