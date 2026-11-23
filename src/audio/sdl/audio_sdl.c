@@ -81,10 +81,10 @@ static bool init_audio_device(SDL_AudioSpec *spec) {
 	want.samples = config_get_int(CONFIG_MIXER_CHUNKSIZE);
 #ifdef __WIIU__
 	/* 512 samples is under 11 ms: the mixer, decoding the music on a
-	 * 1.2 GHz core, ran dry when a boss fight added sounds, and the
-	 * sound broke up and crackled from then on. */
-	if(want.samples < 2048) {
-		want.samples = 2048;
+	 * 1.2 GHz core, ran dry in boss fights and the sound broke up. SDL's
+	 * Wii U driver plays nothing at 2048 (it accepts the size, though). */
+	if(want.samples < 1024) {
+		want.samples = 1024;
 	}
 #endif
 
