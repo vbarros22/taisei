@@ -590,21 +590,6 @@ static bool texture_loader_basisu_init_mipmaps(
 	}
 
 	int mip_bias = env_get("TAISEI_BASISU_MIP_BIAS", 0);
-#ifdef __WIIU__
-	/* Textures are uncompressed on the Wii U: keep them at most 2048 px
-	 * wide or tall, or a stage with big textures runs out of memory.
-	 * Not sprite atlases: sprites give their regions in pixels of the
-	 * full-size atlas, and a smaller atlas showed the wrong sprites. */
-	if(strncmp(ld->st->name, "atlas_", 6)) {
-		basist_image_level_desc level0;
-		if(basist_transcoder_get_image_level_desc(bld->tc, ref_img->image_index, 0, &level0)) {
-			while(mip_bias < total_levels - 1 &&
-				((level0.orig_width >> mip_bias) > 2048 || (level0.orig_height >> mip_bias) > 2048)) {
-				++mip_bias;
-			}
-		}
-	}
-#endif
 	mip_bias = clamp(mip_bias, 0, total_levels - 1);
 	{
 		int max_levels = env_get("TAISEI_BASISU_MAX_MIP_LEVELS", 0);
