@@ -339,8 +339,35 @@ MixerBGMImpl *mixerbgm_load(const char *vfspath) {
 
 	auto bgm = ALLOC(MixerBGMImpl);
 
+#ifdef __WIIU__
+	/* Streaming from the SD card, the audio thread waits on the package's
+	 * file lock while the loaders read textures, and the music breaks up.
+	 * The tracks are a few MB: keep the whole file in memory. */
+	{
+		Sint64 size = SDL_RWsize(rw);
+		void *mem = size > 0 ? mem_alloc((size_t)size) : NULL;
+
+		if(mem && SDL_RWread(rw, mem, 1, (size_t)size) == (size_t)size) {
+			SDL_RWops *memrw = SDL_RWFromConstMem(mem, (int)size);
+
+			if(memrw) {
+				SDL_RWclose(rw);
+				rw = memrw;
+				bgm->memory = mem;
+				mem = NULL;
+			}
+		}
+
+		if(mem) {
+			mem_free(mem);
+			SDL_RWseek(rw, 0, RW_SEEK_SET);
+		}
+	}
+#endif
+
 	if(!astream_open(&bgm->stream, rw, vfspath)) {
 		SDL_RWclose(rw);
+		mem_free(bgm->memory);
 		mem_free(bgm);
 		return NULL;
 	}
@@ -351,6 +378,7 @@ MixerBGMImpl *mixerbgm_load(const char *vfspath) {
 
 void mixerbgm_unload(MixerBGMImpl *bgm) {
 	astream_close(&bgm->stream);
+	mem_free(bgm->memory);
 	mem_free(bgm);
 }
 

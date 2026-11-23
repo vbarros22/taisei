@@ -28,6 +28,7 @@ typedef struct MixerSFXImpl {
 
 typedef struct MixerBGMImpl {
 	AudioStream stream;
+	void *memory;  // the whole file, where the stream reads from memory
 } MixerBGMImpl;
 
 static_assert(offsetof(MixerBGMImpl, stream) == 0, "");
