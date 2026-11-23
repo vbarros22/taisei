@@ -731,6 +731,49 @@ void texture_loader_stage1(ResourceLoadState *st) {
 		ld->preprocess.multiply_alpha = false;
 	}
 
+#ifdef __WIIU__
+	/*
+	 * Premultiply and apply the alphamap here instead of in the GPU pass:
+	 * on the Wii U that pass didn't premultiply, so bullets whose glow sits
+	 * in low-alpha pixels drew as solid squares. It also spares a second
+	 * full-size texture while loading.
+	 */
+	if(
+		!ld->preprocess.linearize &&
+		ld->pixmaps->format == PIXMAP_FORMAT_RGBA8 &&
+		(!ld->alphamap.data.untyped || (
+			ld->alphamap.format == PIXMAP_FORMAT_R8 &&
+			ld->alphamap.width == ld->pixmaps->width &&
+			ld->alphamap.height == ld->pixmaps->height &&
+			ld->alphamap.origin == ld->pixmaps->origin
+		))
+	) {
+		uint8_t *px = ld->pixmaps->data.untyped;
+		const uint8_t *am = ld->alphamap.data.untyped;
+		size_t n = (size_t)ld->pixmaps->width * ld->pixmaps->height;
+
+		for(size_t i = 0; i < n; ++i, px += 4) {
+			uint a = px[3];
+
+			if(am) {
+				a = (a * am[i] + 127) / 255;
+				px[3] = a;
+			}
+
+			if(ld->preprocess.multiply_alpha) {
+				px[0] = (px[0] * a + 127) / 255;
+				px[1] = (px[1] * a + 127) / 255;
+				px[2] = (px[2] * a + 127) / 255;
+			}
+		}
+
+		mem_free(ld->alphamap.data.untyped);
+		ld->alphamap.data.untyped = NULL;
+		ld->preprocess.apply_alphamap = false;
+		ld->preprocess.multiply_alpha = false;
+	}
+#endif
+
 	ld->params.width = ld->pixmaps->width;
 	ld->params.height = ld->pixmaps->height;
 

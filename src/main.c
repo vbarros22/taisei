@@ -47,6 +47,13 @@ static bool watchdog_handler(SDL_Event *evt, void *arg) {
 }
 
 attr_unused
+#ifdef __WIIU__
+#include "arch_wiiu.h"
+#define WIIU_SHUTDOWN_STEP(name) (wiiu_log_raw("shutdown: " name "\n"), wiiu_sync_log())
+#else
+#define WIIU_SHUTDOWN_STEP(name) ((void)0)
+#endif
+
 static void taisei_shutdown(void) {
 	log_info("Shutting down");
 
@@ -55,35 +62,59 @@ static void taisei_shutdown(void) {
 		progress_save();
 	}
 
+	WIIU_SHUTDOWN_STEP("r_release_resources");
 	r_release_resources();
+	WIIU_SHUTDOWN_STEP("res_shutdown");
 	res_shutdown();
 
 	if(global.is_kiosk_mode) {
 		events_unregister_handler(watchdog_handler);
 	}
 
+	WIIU_SHUTDOWN_STEP("watchdog_shutdown");
 	watchdog_shutdown();
+	WIIU_SHUTDOWN_STEP("demoplayer_shutdown");
 	demoplayer_shutdown();
+	WIIU_SHUTDOWN_STEP("progress_unload");
 	progress_unload();
+	WIIU_SHUTDOWN_STEP("stage_objpools_shutdown");
 	stage_objpools_shutdown();
+	WIIU_SHUTDOWN_STEP("gamemode_shutdown");
 	gamemode_shutdown();
+	WIIU_SHUTDOWN_STEP("taskmgr_global_shutdown");
 	taskmgr_global_shutdown();
+	WIIU_SHUTDOWN_STEP("audio_shutdown");
 	audio_shutdown();
+	WIIU_SHUTDOWN_STEP("r_models_shutdown");
 	r_models_shutdown();
+	WIIU_SHUTDOWN_STEP("r_sprite_batch_shutdown");
 	r_sprite_batch_shutdown();
+	WIIU_SHUTDOWN_STEP("video_shutdown");
 	video_shutdown();
+	WIIU_SHUTDOWN_STEP("gamepad_shutdown");
 	gamepad_shutdown();
+	WIIU_SHUTDOWN_STEP("stageinfo_shutdown");
 	stageinfo_shutdown();
+	WIIU_SHUTDOWN_STEP("config_shutdown");
 	config_shutdown();
+	WIIU_SHUTDOWN_STEP("filewatch_shutdown");
 	filewatch_shutdown();
+	WIIU_SHUTDOWN_STEP("vfs_shutdown");
 	vfs_shutdown();
+	WIIU_SHUTDOWN_STEP("events_shutdown");
 	events_shutdown();
+	WIIU_SHUTDOWN_STEP("time_shutdown");
 	time_shutdown();
+	WIIU_SHUTDOWN_STEP("coroutines_shutdown");
 	coroutines_shutdown();
+	WIIU_SHUTDOWN_STEP("log_queue_shutdown");
 	log_queue_shutdown();
+	WIIU_SHUTDOWN_STEP("thread_shutdown");
 	thread_shutdown();
 	log_info("Good bye");
+	WIIU_SHUTDOWN_STEP("log_shutdown");
 	log_shutdown();
+	WIIU_SHUTDOWN_STEP("SDL_Quit");
 	SDL_Quit();
 }
 
