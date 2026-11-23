@@ -462,7 +462,7 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 	static unsigned (*get_error)(void);
 	static int frame, reported_errors, reported_slow;
 	unsigned err;
-	char line[512];
+	char line[1536];
 
 	if(!get_error) {
 		get_error = (unsigned (*)(void))GX2GL_GetProcAddress("glGetError");
@@ -536,6 +536,20 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 			snprintf(line, sizeof(line), "    GPU waits: %u/%ums, longest %ums at %s:%d\n",
 				st.gpu_waits, st.gpu_wait_us / 1000, st.slowest_wait_us / 1000,
 				st.slowest_wait_file, st.slowest_wait_line);
+			wiiu_log_raw(line);
+		}
+		if(sample && st.wait_log_count) {
+			/* Each GPU wait: source line, time, and the surface it resolved. */
+			int n = snprintf(line, sizeof(line), "    wait log:");
+			for(uint32_t i = 0; i < st.wait_log_count && n < (int)sizeof(line) - 48; ++i) {
+				n += snprintf(line + n, sizeof(line) - n, " L%d:%u.%ums",
+					st.wait_log[i].line, st.wait_log[i].us / 1000, (st.wait_log[i].us / 100) % 10);
+				if(st.wait_log[i].width) {
+					n += snprintf(line + n, sizeof(line) - n, "(%ux%u f%x)",
+						st.wait_log[i].width, st.wait_log[i].height, st.wait_log[i].format);
+				}
+			}
+			snprintf(line + n, sizeof(line) - n, "\n");
 			wiiu_log_raw(line);
 		}
 		snprintf(line, sizeof(line),
