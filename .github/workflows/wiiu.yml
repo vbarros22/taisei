@@ -141,7 +141,8 @@ jobs:
             exit 1
           fi
           "$DEVKITPRO/tools/bin/wuhbtool" artifacts/taisei.rpx artifacts/taisei.wuhb \
-            --name "Taisei Project" --short-name "Taisei" --author "Taisei Project Team, Wii U port by vbarros22"
+            --name "Taisei Project" --short-name "Taisei" --author "Taisei Project Team, Wii U port by vbarros22" \
+            --icon wiiu/icon.png --tv-image wiiu/splash_tv.png --drc-image wiiu/splash_drc.png
           # The game data goes on the SD card, next to the log and saves.
           data=$(find "$root" -maxdepth 4 -name '00-taisei.*' -printf '%h\n' | head -1)
           echo "Data: $data"
