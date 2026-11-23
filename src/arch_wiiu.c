@@ -527,6 +527,17 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 			st.finish_us / 1000, st.vsync_us / 1000,
 			heap_mb, arena_mb, mallinfo_ms);
 		wiiu_log_raw(line);
+		if(st.slowest_call && st.slowest_us >= 20000) {
+			snprintf(line, sizeof(line), "    slowest GL call: %ums in %s\n",
+				st.slowest_us / 1000, st.slowest_call);
+			wiiu_log_raw(line);
+		}
+		if(st.slowest_wait_file && st.gpu_wait_us >= 20000) {
+			snprintf(line, sizeof(line), "    GPU waits: %u/%ums, longest %ums at %s:%d\n",
+				st.gpu_waits, st.gpu_wait_us / 1000, st.slowest_wait_us / 1000,
+				st.slowest_wait_file, st.slowest_wait_line);
+			wiiu_log_raw(line);
+		}
 		snprintf(line, sizeof(line),
 			"    main loop: logic %ux/%ums render %ux/%ums (to swap %ums, present %ums) wait %ux/%ums | taisei clock %d ms\n",
 			phase_count[WIIU_PHASE_LOGIC], (unsigned)(phase_us[WIIU_PHASE_LOGIC] / 1000),
