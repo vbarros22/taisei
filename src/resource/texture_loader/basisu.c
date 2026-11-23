@@ -769,7 +769,7 @@ static bool texture_loader_basisu_load_pixmap(
 	return true;
 }
 
-void texture_loader_basisu(TextureLoadData *ld) {
+static void texture_loader_basisu_impl(TextureLoadData *ld) {
 	struct basisu_load_data bld = { 0 };
 
 #ifdef __WIIU__
@@ -984,4 +984,28 @@ void texture_loader_basisu(TextureLoadData *ld) {
 
 	texture_loader_basisu_cleanup(&bld);
 	texture_loader_continue(ld);
+}
+
+void texture_loader_basisu(TextureLoadData *ld) {
+#ifdef __WIIU__
+	/*
+	 * One transcode at a time: the heap was corrupted now and then while
+	 * two threads transcoded at once (a resource path overwritten, free()
+	 * crashing), and basisu's global init relies on std::call_once.
+	 */
+	static SDL_SpinLock lock;
+	static SDL_mutex *mutex;
+
+	SDL_AtomicLock(&lock);
+	if(!mutex) {
+		mutex = SDL_CreateMutex();
+	}
+	SDL_AtomicUnlock(&lock);
+
+	SDL_LockMutex(mutex);
+	texture_loader_basisu_impl(ld);
+	SDL_UnlockMutex(mutex);
+#else
+	texture_loader_basisu_impl(ld);
+#endif
 }
