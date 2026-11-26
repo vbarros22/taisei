@@ -12,5 +12,8 @@ void spriteMain(out vec4 fragColor) {
 	}
 
 	vec4 color2 = smoothstep(mask.g - 0.25, 1 + 0.5 * mask.r, 0.1 + 0.8 * color);
-	fragColor = (color * mask.g + mix(mask.r * color2, vec4(1.0), mask.b)) * customParams.r;
+	// mix(a, vec4(1.0), mask.b) written out: the Wii U shader compiler
+	// (CafeGLSL) drew solid squares around some bullets with the mix() form.
+	vec4 a = mask.r * color2;
+	fragColor = (color * mask.g + a + (vec4(1.0) - a) * mask.b) * customParams.r;
 }
