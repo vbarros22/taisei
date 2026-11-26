@@ -62,10 +62,15 @@ static void taisei_shutdown(void) {
 		progress_save();
 	}
 
-	WIIU_SHUTDOWN_STEP("r_release_resources");
+#ifndef __WIIU__
+	/*
+	 * Not on the Wii U: the system frees the memory when the app quits, and
+	 * res_shutdown() hung after unloading everything (black screen, console
+	 * had to be turned off).
+	 */
 	r_release_resources();
-	WIIU_SHUTDOWN_STEP("res_shutdown");
 	res_shutdown();
+#endif
 
 	if(global.is_kiosk_mode) {
 		events_unregister_handler(watchdog_handler);

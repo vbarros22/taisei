@@ -841,6 +841,18 @@ void texture_loader_continue(TextureLoadData *ld) {
 		ld->params.mipmaps = TEX_MIPMAPS_MAX;
 	}
 
+#ifdef __WIIU__
+	/*
+	 * Sprite atlases without mipmaps: bullets drawn smaller than their atlas
+	 * region showed a solid square around them, as if the mip levels gx2gl
+	 * generates didn't come from the premultiplied image. Also saves a third
+	 * of each atlas' memory and the time to generate them.
+	 */
+	if(ld->params.mipmap_mode == TEX_MIPMAP_AUTO && !strncmp(ld->st->name, "atlas_", 6)) {
+		ld->params.mipmaps = 1;
+	}
+#endif
+
 	if(ld->params.mipmaps == 1) {
 		// Special case: one mip level (no mipmaps).
 		// Disable mipmap generation and filtering modes.
