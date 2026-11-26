@@ -50,7 +50,7 @@ static void texture_loader_basisu_tls_destructor(void *tc) {
 	basist_transcoder_destroy(NOT_NULL(tc));
 }
 
-attr_unused static basist_transcoder *texture_loader_basisu_get_transcoder(void) {
+static basist_transcoder *texture_loader_basisu_get_transcoder(void) {
 	static SDL_SpinLock lock;
 	static SDL_TLSID tls;
 	static basist_transcoder *fallback;
@@ -377,7 +377,6 @@ struct basisu_load_data {
 	bool transcoding_started;
 	bool swizzle_supported;
 	bool is_uncompressed_fallback;
-	bool owns_tc;
 	char basis_hash[BASISU_HASH_SIZE];
 };
 
@@ -388,11 +387,6 @@ static void texture_loader_basisu_cleanup(struct basisu_load_data *bld) {
 		}
 
 		basist_transcoder_set_data(bld->tc, (basist_data) { 0 });
-
-		if(bld->owns_tc) {
-			basist_transcoder_destroy(bld->tc);
-			bld->tc = NULL;
-		}
 	}
 
 	mem_free(bld->filebuf);
@@ -769,21 +763,10 @@ static bool texture_loader_basisu_load_pixmap(
 	return true;
 }
 
-static void texture_loader_basisu_impl(TextureLoadData *ld) {
+void texture_loader_basisu(TextureLoadData *ld) {
 	struct basisu_load_data bld = { 0 };
 
-#ifdef __WIIU__
-	/*
-	 * One transcoder per load: the per-thread transcoder ended up shared
-	 * between loads running at the same time, which crashed in the ETC1S
-	 * decoder.
-	 */
-	bld.tc = basist_transcoder_create();
-	bld.owns_tc = true;
-	if(UNLIKELY(!bld.tc)) {
-#else
 	if(UNLIKELY(!(bld.tc = texture_loader_basisu_get_transcoder()))) {
-#endif
 		texture_loader_basisu_failed(ld, &bld);
 		return;
 	}
@@ -984,28 +967,4 @@ static void texture_loader_basisu_impl(TextureLoadData *ld) {
 
 	texture_loader_basisu_cleanup(&bld);
 	texture_loader_continue(ld);
-}
-
-void texture_loader_basisu(TextureLoadData *ld) {
-#ifdef __WIIU__
-	/*
-	 * One transcode at a time: the heap was corrupted now and then while
-	 * two threads transcoded at once (a resource path overwritten, free()
-	 * crashing), and basisu's global init relies on std::call_once.
-	 */
-	static SDL_SpinLock lock;
-	static SDL_mutex *mutex;
-
-	SDL_AtomicLock(&lock);
-	if(!mutex) {
-		mutex = SDL_CreateMutex();
-	}
-	SDL_AtomicUnlock(&lock);
-
-	SDL_LockMutex(mutex);
-	texture_loader_basisu_impl(ld);
-	SDL_UnlockMutex(mutex);
-#else
-	texture_loader_basisu_impl(ld);
-#endif
 }

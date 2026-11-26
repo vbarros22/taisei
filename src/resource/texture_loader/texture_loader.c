@@ -738,15 +738,30 @@ void texture_loader_stage1(ResourceLoadState *st) {
 	 * in low-alpha pixels drew as solid squares. It also spares a second
 	 * full-size texture while loading.
 	 */
+	uint am_stride = 0;
+
+	if(ld->alphamap.data.untyped && pixmap_format_depth(ld->alphamap.format) == 8) {
+		am_stride = pixmap_format_layout(ld->alphamap.format);
+	}
+
+	bool alphamap_ok = !ld->alphamap.data.untyped || (
+		am_stride &&
+		ld->alphamap.width == ld->pixmaps->width &&
+		ld->alphamap.height == ld->pixmaps->height &&
+		ld->alphamap.origin == ld->pixmaps->origin
+	);
+
+	if(ld->preprocess.multiply_alpha || ld->alphamap.data.untyped) {
+		log_info("%s: CPU preprocess: format %d (rgba8 %d) linearize %d, alphamap format %d %ux%u, ok %d",
+			st->name, ld->pixmaps->format, PIXMAP_FORMAT_RGBA8, ld->preprocess.linearize,
+			ld->alphamap.data.untyped ? (int)ld->alphamap.format : -1,
+			ld->alphamap.width, ld->alphamap.height, alphamap_ok);
+	}
+
 	if(
 		!ld->preprocess.linearize &&
 		ld->pixmaps->format == PIXMAP_FORMAT_RGBA8 &&
-		(!ld->alphamap.data.untyped || (
-			ld->alphamap.format == PIXMAP_FORMAT_R8 &&
-			ld->alphamap.width == ld->pixmaps->width &&
-			ld->alphamap.height == ld->pixmaps->height &&
-			ld->alphamap.origin == ld->pixmaps->origin
-		))
+		alphamap_ok
 	) {
 		uint8_t *px = ld->pixmaps->data.untyped;
 		const uint8_t *am = ld->alphamap.data.untyped;
@@ -756,7 +771,7 @@ void texture_loader_stage1(ResourceLoadState *st) {
 			uint a = px[3];
 
 			if(am) {
-				a = (a * am[i] + 127) / 255;
+				a = (a * am[i * am_stride] + 127) / 255;
 				px[3] = a;
 			}
 
