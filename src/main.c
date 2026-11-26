@@ -88,8 +88,10 @@ static void taisei_shutdown(void) {
 	gamemode_shutdown();
 	WIIU_SHUTDOWN_STEP("taskmgr_global_shutdown");
 	taskmgr_global_shutdown();
-	WIIU_SHUTDOWN_STEP("audio_shutdown");
+#ifndef __WIIU__
+	/* Not on the Wii U: closing SDL's audio device never returned. */
 	audio_shutdown();
+#endif
 	WIIU_SHUTDOWN_STEP("r_models_shutdown");
 	r_models_shutdown();
 	WIIU_SHUTDOWN_STEP("r_sprite_batch_shutdown");
