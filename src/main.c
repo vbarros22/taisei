@@ -121,8 +121,14 @@ static void taisei_shutdown(void) {
 	log_info("Good bye");
 	WIIU_SHUTDOWN_STEP("log_shutdown");
 	log_shutdown();
-	WIIU_SHUTDOWN_STEP("SDL_Quit");
+#ifdef __WIIU__
+	/* SDL_Quit() would close the audio device, which never returns here. */
+	WIIU_SHUTDOWN_STEP("SDL_QuitSubSystem");
+	SDL_QuitSubSystem(SDL_INIT_EVERYTHING & ~SDL_INIT_AUDIO);
+	WIIU_SHUTDOWN_STEP("done");
+#else
 	SDL_Quit();
+#endif
 }
 
 static void init_log(void) {
