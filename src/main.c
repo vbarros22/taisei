@@ -488,6 +488,14 @@ static void main_post_vfsinit(CallChainResult ccr) {
 		progress_unlock_all();
 	}
 
+#ifdef __WIIU__
+	// Wii U test builds: no command line, so unlock everything and save it.
+	// TODO: remove before the release.
+	log_info("Wii U test build: unlocking all content");
+	progress_unlock_all();
+	progress_save();
+#endif
+
 	video_post_init();
 
 	set_transition(TransLoader, 0, FADE_TIME*2, NO_CALLCHAIN);
