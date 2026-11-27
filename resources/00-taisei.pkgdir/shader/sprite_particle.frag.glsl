@@ -3,5 +3,7 @@
 #include "lib/sprite_main.frag.glslh"
 
 void spriteMain(out vec4 fragColor) {
-    fragColor = color * texture(tex, texCoord) * customParams.r;
+	// Wii U debug (temporary): paint the texture coordinate as colour
+	// (red = x, green = y, blue = position inside the quad).
+	fragColor = vec4(texCoord.x, texCoord.y, texCoordRaw.x, 1.0);
 }

@@ -1292,59 +1292,6 @@ void gl33_end_draw(void *state) {
 	gl33_stats_post_draw();
 }
 
-
-#ifdef __WIIU__
-/*
- * Wii U debug (temporary): which texture is bound for 'tex' when the
- * particle and bullet programs draw.
- */
-static void gl33_wiiu_probe_draw(void) {
-	static int n_particle, n_bullet;
-	ShaderProgram *prog = R.progs.active;
-
-	if(!prog) {
-		return;
-	}
-
-	const char *label = gl33_shader_program_get_debug_label(prog);
-	int *n;
-
-	if(strstr(label, "sprite_particle")) {
-		n = &n_particle;
-	} else if(strstr(label, "sprite_bullet")) {
-		n = &n_bullet;
-	} else {
-		return;
-	}
-
-	if(*n >= 12) {
-		return;
-	}
-
-	++*n;
-	GLint loc = glGetUniformLocation(prog->gl_handle, "tex");
-	GLint unit = -1, active = 0, id = 0, w = 0, h = 0, cur = 0;
-	glGetIntegerv(GL_CURRENT_PROGRAM, &cur);
-
-	if(loc >= 0) {
-		glGetUniformiv(prog->gl_handle, loc, &unit);
-	}
-
-	glGetIntegerv(GL_ACTIVE_TEXTURE, &active);
-
-	if(unit >= 0) {
-		glActiveTexture(GL_TEXTURE0 + unit);
-		glGetIntegerv(GL_TEXTURE_BINDING_2D, &id);
-		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
-		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
-		glActiveTexture(active);
-	}
-
-	log_info("drawprobe %s: prog %u (current %d) tex loc %d unit %d -> texture %d %dx%d",
-		label, prog->gl_handle, cur, loc, unit, id, w, h);
-}
-#endif
-
 static void gl33_draw(VertexArray *varr, Primitive prim, uint firstvert, uint count, uint instances, uint base_instance) {
 	assert(count > 0);
 	assert(base_instance == 0);
@@ -1352,10 +1299,6 @@ static void gl33_draw(VertexArray *varr, Primitive prim, uint firstvert, uint co
 
 	void *state;
 	gl33_begin_draw(varr, &state);
-
-#ifdef __WIIU__
-	gl33_wiiu_probe_draw();
-#endif
 
 	if(instances) {
 		glDrawArraysInstanced(gl_prim, firstvert, count, instances);
@@ -1375,10 +1318,6 @@ static void gl33_draw_indexed(VertexArray *varr, Primitive prim, uint firstidx, 
 
 	void *state;
 	gl33_begin_draw(varr, &state);
-
-#ifdef __WIIU__
-	gl33_wiiu_probe_draw();
-#endif
 
 	uintptr_t iofs = firstidx * ibuf->index_size;
 
