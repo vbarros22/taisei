@@ -483,8 +483,14 @@ void wiiu_gl_swap_window(SDL_Window *window) {
 		get_error = (unsigned (*)(void))GX2GL_GetProcAddress("glGetError");
 	}
 
-	while(get_error && (err = get_error()) != 0 && reported_errors < 60) {
-		snprintf(line, sizeof(line), "GL error 0x%04x in frame %d\n", err, frame);
+	while(get_error && reported_errors < 60) {
+		const char *site = GX2GL_GetLastErrorSite();
+
+		if((err = get_error()) == 0) {
+			break;
+		}
+
+		snprintf(line, sizeof(line), "GL error 0x%04x in frame %d (%s)\n", err, frame, site);
 		wiiu_log_raw(line);
 		reported_errors++;
 	}
