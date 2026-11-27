@@ -768,11 +768,12 @@ void texture_loader_stage1(ResourceLoadState *st) {
 		size_t n = (size_t)ld->pixmaps->width * ld->pixmaps->height;
 
 		for(size_t i = 0; i < n; ++i, px += 4) {
+			// Same order as texture_post_load: premultiply by the image's
+			// own alpha, then apply the alphamap to alpha only.
 			uint a = px[3];
 
 			if(am) {
-				a = (a * am[i * am_stride] + 127) / 255;
-				px[3] = a;
+				px[3] = (a * am[i * am_stride] + 127) / 255;
 			}
 
 			if(ld->preprocess.multiply_alpha) {
@@ -947,31 +948,6 @@ static void texture_loader_stage2(ResourceLoadState *st) {
 		for(uint i = 0; i < ld->num_pixmaps; ++i) {
 			Pixmap *p = ld->pixmaps + i;
 			r_texture_fill(texture, i, 0, p);
-#ifdef __WIIU__
-			/* Debug: the 'wave' bullet draws inside a square on the Wii U.
-			 * Compare its corner texels before upload and read back. */
-			if(i == 0 && !strcmp(st->name, "atlas_common_0") && p->format == PIXMAP_FORMAT_RGBA8) {
-				static const uint pts[][2] = { { 3991, 1493 }, { 4037, 1500 }, { 4037, 1545 }, { 3995, 1590 } };
-				Pixmap gpu = { 0 };
-				bool dumped = r_texture_dump(texture, 0, 0, &gpu);
-				log_info("texdebug: %ux%u origin %d, dump %d fmt %d %ux%u origin %d",
-					p->width, p->height, p->origin, dumped, gpu.format, gpu.width, gpu.height, gpu.origin);
-				for(uint k = 0; k < ARRAY_SIZE(pts); ++k) {
-					for(uint flip = 0; flip < 2; ++flip) {
-						uint x = pts[k][0], y = flip ? p->height - 1 - pts[k][1] : pts[k][1];
-						const uint8_t *c = (const uint8_t*)p->data.untyped + ((size_t)y * p->width + x) * 4;
-						const uint8_t *g = NULL;
-						if(dumped && gpu.format == PIXMAP_FORMAT_RGBA8 && x < gpu.width && y < gpu.height) {
-							g = (const uint8_t*)gpu.data.untyped + ((size_t)y * gpu.width + x) * 4;
-						}
-						log_info("texdebug: (%u,%u) cpu %02x%02x%02x%02x gpu %02x%02x%02x%02x",
-							x, y, c[0], c[1], c[2], c[3],
-							g ? g[0] : 0xee, g ? g[1] : 0xee, g ? g[2] : 0xee, g ? g[3] : 0xee);
-					}
-				}
-				mem_free(gpu.data.untyped);
-			}
-#endif
 			mem_free(p->data.untyped);
 		}
 
