@@ -37,7 +37,7 @@ vec3 trace_screenspace_reflection(vec3 pos, vec3 n, sampler2D screen_depth, samp
 	}
 
 	if(ihit == 0) {
-		return vec3(1, 0, 0); // Wii U debug (temporary): no hit
+		return color;
 	}
 
 	for(int j = 0; j < steps; j++) {
@@ -46,7 +46,6 @@ vec3 trace_screenspace_reflection(vec3 pos, vec3 n, sampler2D screen_depth, samp
 		float bgdepth = texture(screen_depth, raycoord.xy).r;
 		if(bgdepth < raycoord.z) {
 			color += 0.8 * texture(screen_color, raycoord.xy).rgb;
-			color += vec3(0, 0, 0.4); // Wii U debug (temporary): hit
 			break; // sorry gpu
 		}
 	}
