@@ -18,12 +18,6 @@ void main(void) {
 	float f = clamp((end - z) / (end - start), 0.0, 1.0);
 
 	vec4 c = alphaCompose(texture(tex, texCoord), fog_color * (1.0 - f));
-	// Wii U debug (temporary): left half without fog, magenta where the
-	// depth buffer reads as "nothing drawn".
-	if(texCoordRaw.x < 0.5) {
-		c = texture(tex, texCoord);
-		if(d > 0.9999) c = vec4(0.6, 0.0, 0.6, 1.0);
-	}
 	c.rgb = PBR_TonemapDefault(exposure * c.rgb);
 	c.rgb = PBR_GammaCorrect(c.rgb);
 	fragColor = c;

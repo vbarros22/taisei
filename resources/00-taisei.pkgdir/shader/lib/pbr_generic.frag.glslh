@@ -17,5 +17,11 @@ void main(void) {
 	color += PBR_Generic_EnvironmentLight(pbr, ibl_brdf_lut, environment_map, environmentRGB_depthScale.rgb, features_mask);
 	PBR_Generic_MaybeTonemap(color, features_mask);
 
+	// Wii U debug (temporary): magenta = NaN, blue = drawn but black.
+	if(any(isnan(color)) || any(isinf(color))) {
+		color = vec3(1, 0, 1);
+	} else if(all(lessThan(color, vec3(0.002)))) {
+		color = vec3(0, 0, 0.35);
+	}
 	fragColor = vec4(color, 1);
 }
