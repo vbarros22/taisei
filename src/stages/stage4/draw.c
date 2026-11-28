@@ -109,7 +109,11 @@ static bool stage4_water_composite(Framebuffer *reflections) {
 	r_blend(BLEND_NONE);
 
 	r_shader("alpha_discard");
+#ifdef __WIIU__
+	r_uniform_float("threshold", 2); // Wii U debug (temporary): left half without water
+#else
 	r_uniform_float("threshold", 1);
+#endif
 	draw_framebuffer_tex(reflections, VIEWPORT_W, VIEWPORT_H);
 
 	r_state_pop();
