@@ -23,6 +23,33 @@ Stage4DrawData *stage4_get_draw_data(void) {
 	return NOT_NULL(stage4_draw_data);
 }
 
+
+#ifdef __WIIU__
+// Wii U debug (temporary): solid markers and a log of which framebuffers
+// the water passes use.
+static void wiiu_dbg_marker(float x, float y, float r, float g, float b) {
+	r_state_push();
+	r_disable(RCAP_DEPTH_TEST);
+	r_blend(BLEND_NONE);
+	r_shader_standard_notex();
+	r_color4(r, g, b, 1);
+	r_mat_mv_push();
+	r_mat_mv_translate(x + 30, y + 30, 0);
+	r_mat_mv_scale(60, 60, 1);
+	r_draw_quad();
+	r_mat_mv_pop();
+	r_color4(1, 1, 1, 1);
+	r_state_pop();
+}
+
+static void wiiu_dbg_log(const char *pass, Framebuffer *in) {
+	static uint counter;
+	if((counter++ % 90) < 3) {
+		log_info("stage4 %s: in %p out %p cam y %f", pass, (void*)in, (void*)r_framebuffer_current(), stage_3d_context.cam.pos[1]);
+	}
+}
+#endif
+
 static bool stage4_fog(Framebuffer *fb) {
 	r_state_push();
 	r_blend(BLEND_NONE);
@@ -38,6 +65,10 @@ static bool stage4_fog(Framebuffer *fb) {
 	r_uniform_float("curvature", 0);
 	r_uniform_vec3("exposure", 1, 1, 1);
 	draw_framebuffer_tex(fb, VIEWPORT_W, VIEWPORT_H);
+#ifdef __WIIU__
+	wiiu_dbg_marker(VIEWPORT_W/2 - 30, 0, 1, 1, 0);
+	wiiu_dbg_log("fog", fb);
+#endif
 
 	r_state_pop();
 
@@ -80,6 +111,10 @@ static bool stage4_water(Framebuffer *fb) {
 	r_mat_mv_pop();
 	r_state_pop();
 	r_mat_proj_pop();
+#ifdef __WIIU__
+	wiiu_dbg_marker(0, 0, 1, 0, 0);
+	wiiu_dbg_log("water", fb);
+#endif
 
 	return true;
 }
@@ -111,6 +146,10 @@ static bool stage4_water_composite(Framebuffer *reflections) {
 	r_shader("alpha_discard");
 	r_uniform_float("threshold", 1);
 	draw_framebuffer_tex(reflections, VIEWPORT_W, VIEWPORT_H);
+#ifdef __WIIU__
+	wiiu_dbg_marker(VIEWPORT_W - 60, 0, 0, 1, 0);
+	wiiu_dbg_log("composite", reflections);
+#endif
 
 	r_state_pop();
 
