@@ -37,7 +37,7 @@ vec3 trace_screenspace_reflection(vec3 pos, vec3 n, sampler2D screen_depth, samp
 	}
 
 	if(ihit == 0) {
-		return vec3(1, 0, 1); // Wii U debug (temporary): no SSR hit
+		return color;
 	}
 
 	for(int j = 0; j < steps; j++) {
