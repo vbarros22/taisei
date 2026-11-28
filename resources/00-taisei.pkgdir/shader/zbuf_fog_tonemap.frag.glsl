@@ -20,5 +20,7 @@ void main(void) {
 	vec4 c = alphaCompose(texture(tex, texCoord), fog_color * (1.0 - f));
 	c.rgb = PBR_TonemapDefault(exposure * c.rgb);
 	c.rgb = PBR_GammaCorrect(c.rgb);
+	// Wii U debug (temporary): left quarter shows the depth buffer.
+	if(texCoordRaw.x < 0.25) c = vec4(vec3(pow(d, 64.0)), 1);
 	fragColor = c;
 }

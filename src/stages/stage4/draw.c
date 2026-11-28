@@ -214,6 +214,17 @@ static void stage4_lake_draw(vec3 pos) {
 	PBREnvironment env = { 0 };
 	stage4_bg_setup_pbr_env_outdoors(&stage_3d_context.cam, &env);
 
+#ifdef __WIIU__
+	// Wii U debug (temporary): draw the lake without depth test and culling.
+	r_disable(RCAP_DEPTH_TEST);
+	r_disable(RCAP_CULL_FACE);
+	if(global.frames % 120 == 0) {
+		Camera3D *c = &stage_3d_context.cam;
+		log_info("stage4 lake: frame %d cam (%f %f %f) rot %f near %f far %f seg (%f %f %f)",
+			global.frames, c->pos[0], c->pos[1], c->pos[2], c->rot.v[0], c->near, c->far, pos[0], pos[1], pos[2]);
+	}
+#endif
+
 	pbr_draw_model(&stage4_draw_data->models.ground, &env);
 	pbr_draw_model(&stage4_draw_data->models.mansion, &env);
 
